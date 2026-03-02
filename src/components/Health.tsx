@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { supabase, Child, GrowthRecord, ImmunizationRecord } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Heart, TrendingUp, Calendar, Syringe, Plus, CheckCircle, AlertCircle, ChefHat } from 'lucide-react';
+import { Heart, TrendingUp, Calendar, Syringe, Plus, CheckCircle, AlertCircle, ChefHat, Video } from 'lucide-react';
 import { MPASI } from './MPASI';
 
 export function Health() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'growth' | 'immunization' | 'mpasi'>('growth');
+  const [activeTab, setActiveTab] = useState<'growth' | 'immunization' | 'mpasi' | 'videos'>('growth');
   const [children, setChildren] = useState<Child[]>([]);
   const [growthRecords, setGrowthRecords] = useState<GrowthRecord[]>([]);
   const [immunizationRecords, setImmunizationRecords] = useState<ImmunizationRecord[]>([]);
@@ -206,14 +206,25 @@ export function Health() {
           </button>
           <button
             onClick={() => setActiveTab('mpasi')}
-            className={`flex-1 px-6 py-4 font-medium transition text-left sm:text-center ${
+            className={`flex-1 px-6 py-4 font-medium transition text-left sm:text-center border-b sm:border-b-0 sm:border-r ${
               activeTab === 'mpasi'
-                ? 'bg-blue-50 text-blue-600'
+                ? 'bg-blue-50 text-blue-600 border-blue-600'
                 : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
             <ChefHat className="w-5 h-5 inline mr-2" />
             Resep MPASI
+          </button>
+          <button
+            onClick={() => setActiveTab('videos')}
+            className={`flex-1 px-6 py-4 font-medium transition text-left sm:text-center ${
+              activeTab === 'videos'
+                ? 'bg-blue-50 text-blue-600'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <Video className="w-5 h-5 inline mr-2" />
+            Video Edukasi
           </button>
         </div>
 
@@ -447,6 +458,68 @@ export function Health() {
               {activeTab === 'mpasi' && (
                 <div className="space-y-4">
                   <MPASI />
+                </div>
+              )}
+
+              {activeTab === 'videos' && (
+                <div className="space-y-6">
+                  <div className="text-center mb-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Video Edukasi Kesehatan</h3>
+                    <p className="text-gray-600">Pelajari lebih lanjut tentang kesehatan keluarga melalui video edukatif</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
+                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                        <iframe
+                          className="absolute top-0 left-0 w-full h-full"
+                          src="https://www.youtube.com/embed/TQ-dbaNHxBM"
+                          title="Video Edukasi Kesehatan 1"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        ></iframe>
+                      </div>
+                      <div className="p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Video Edukasi 1</h4>
+                        <p className="text-sm text-gray-600">Informasi penting seputar kesehatan keluarga</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
+                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                        <iframe
+                          className="absolute top-0 left-0 w-full h-full"
+                          src="https://www.youtube.com/embed/YY44LLJw6OY"
+                          title="Video Edukasi Kesehatan 2"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        ></iframe>
+                      </div>
+                      <div className="p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Video Edukasi 2</h4>
+                        <p className="text-sm text-gray-600">Tips dan panduan kesehatan untuk keluarga</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
+                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                        <iframe
+                          className="absolute top-0 left-0 w-full h-full"
+                          src="https://www.youtube.com/embed/o0bcQUBbJbw"
+                          title="Video Edukasi Kesehatan 3"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        ></iframe>
+                      </div>
+                      <div className="p-4">
+                        <h4 className="font-semibold text-gray-900 mb-2">Video Edukasi 3</h4>
+                        <p className="text-sm text-gray-600">Panduan lengkap untuk kesehatan optimal</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </>
