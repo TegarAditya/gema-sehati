@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase, Child, ActivityPhoto } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Image as ImageIcon, Plus, Calendar, X } from 'lucide-react';
+import { Image as ImageIcon, Plus, Calendar, X, Trash2 } from 'lucide-react';
 
 export function Gallery() {
   const { user } = useAuth();
@@ -9,6 +9,7 @@ export function Gallery() {
   const [photos, setPhotos] = useState<ActivityPhoto[]>([]);
   const [showAddPhoto, setShowAddPhoto] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<ActivityPhoto | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [newPhoto, setNewPhoto] = useState({
     child_id: '',
@@ -77,12 +78,27 @@ export function Gallery() {
     return children.find(c => c.id === childId)?.name || 'Anak';
   };
 
+  const handleDeletePhoto = async () => {
+    if (!selectedPhoto) return;
+
+    const { error } = await supabase
+      .from('activity_photos')
+      .delete()
+      .eq('id', selectedPhoto.id);
+
+    if (!error) {
+      setSelectedPhoto(null);
+      setShowDeleteConfirm(false);
+      loadData();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <ImageIcon className="w-7 h-7 text-green-600" />
-          Galeri Kegiatan
+          Galeri <span className="hidden sm:block">Kegiatan</span>
         </h2>
         <button
           onClick={() => setShowAddPhoto(!showAddPhoto)}
@@ -228,12 +244,21 @@ export function Gallery() {
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <h3 className="font-semibold text-gray-900">{getChildName(selectedPhoto.child_id)}</h3>
-              <button
-                onClick={() => setSelectedPhoto(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition"
+                  title="Hapus foto"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setSelectedPhoto(null)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             <div className="p-6">
               <img
@@ -256,6 +281,42 @@ export function Gallery() {
               {selectedPhoto.caption && (
                 <p className="text-gray-700">{selectedPhoto.caption}</p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 z-[60] flex items-center justify-center p-4"
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            className="bg-white rounded-xl p-6 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-red-100 rounded-full">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Hapus Foto?</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Apakah Anda yakin ingin menghapus foto ini? Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleDeletePhoto}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
+              >
+                Hapus
+              </button>
             </div>
           </div>
         </div>
