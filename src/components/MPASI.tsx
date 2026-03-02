@@ -164,23 +164,23 @@ export function MPASI() {
         <h4 className="font-semibold text-gray-900 mb-3">Tips Pemberian MPASI:</h4>
         <ul className="space-y-2 text-sm text-gray-700">
           <li className="flex items-start gap-2">
-            <span className="text-orange-600 mt-1">•</span>
+            <span className="text-orange-600">•</span>
             <span>Mulai dengan satu jenis makanan baru per minggu untuk memantau reaksi alergi</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="text-orange-600 mt-1">•</span>
+            <span className="text-orange-600">•</span>
             <span>Berikan makanan dalam keadaan hangat, tidak terlalu panas</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="text-orange-600 mt-1">•</span>
+            <span className="text-orange-600">•</span>
             <span>Gunakan sendok plastik lembut dan bersih saat memberi makan</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="text-orange-600 mt-1">•</span>
+            <span className="text-orange-600">•</span>
             <span>Perhatikan tanda-tanda alergi seperti ruam, muntah, atau diare</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="text-orange-600 mt-1">•</span>
+            <span className="text-orange-600">•</span>
             <span>Simpan MPASI yang sudah matang dalam wadah tertutup di kulkas maksimal 3 hari</span>
           </li>
         </ul>
