@@ -138,7 +138,19 @@ npm run build
 
 # Preview production build
 npm run preview
+
+# Seed stories + MPASI recipes
+npm run seed:content
+
+# Seed with reset (wipe current stories + recipes first)
+npm run seed:content:reset
 ```
+
+> Note: the seeder reads `.env` file and requires `SUPABASE_SERVICE_ROLE_KEY` to be set. Add it to your `.env`:
+> ```env
+> VITE_SUPABASE_URL=your_supabase_project_url
+> SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+> ```
 
 ## 📁 Project Structure
 
