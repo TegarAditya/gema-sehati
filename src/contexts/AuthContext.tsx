@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
   user: User | null;
+  isAdmin: boolean;
+  isActive: boolean;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -14,17 +16,49 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(true);
 
+  const syncUserState = async (authUser: User | null) => {
+    if (!authUser) {
+      setUser(null);
+      setIsAdmin(false);
+      setIsActive(true);
+      return;
+    }
+
+    const adminFlag = authUser.user_metadata?.is_admin === true;
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('is_active')
+      .eq('id', authUser.id)
+      .maybeSingle();
+
+    const active = profile?.is_active ?? true;
+
+    if (!active) {
+      await supabase.auth.signOut();
+      setUser(null);
+      setIsAdmin(false);
+      setIsActive(false);
+      return;
+    }
+
+    setUser(authUser);
+    setIsAdmin(adminFlag);
+    setIsActive(true);
+  };
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      await syncUserState(session?.user ?? null);
       setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       (async () => {
-        setUser(session?.user ?? null);
+        await syncUserState(session?.user ?? null);
       })();
     });
 
@@ -50,10 +84,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+
+      if (!error && data.user) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('is_active')
+          .eq('id', data.user.id)
+          .maybeSingle();
+
+        if (profile && !profile.is_active) {
+          await supabase.auth.signOut();
+          return { error: new Error('Akun Anda sedang dinonaktifkan oleh admin') };
+        }
+      }
+
       return { error: error ? new Error(error.message) : null };
     } catch (error) {
       return { error: error as Error };
@@ -65,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, isAdmin, isActive, loading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

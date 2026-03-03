@@ -6,9 +6,10 @@ import { Dashboard } from './components/Dashboard';
 import { Literacy } from './components/Literacy';
 import { Health } from './components/Health';
 import { Gallery } from './components/Gallery';
+import { Admin } from './components/Admin';
 
 function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
 
   if (loading) {
@@ -29,6 +30,7 @@ function App() {
       {currentPage === 'literacy' && <Literacy />}
       {currentPage === 'health' && <Health />}
       {currentPage === 'gallery' && <Gallery />}
+      {currentPage === 'admin' && (isAdmin ? <Admin /> : <Dashboard />)}
     </Layout>
   );
 }

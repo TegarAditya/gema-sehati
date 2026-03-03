@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Home, Book, Heart, Image, LogOut, Menu, X } from 'lucide-react';
+import { Home, Book, Heart, Image, LogOut, Menu, Shield, X } from 'lucide-react';
 import { useState } from 'react';
 
 interface LayoutProps {
@@ -10,7 +10,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
-  const { signOut, user } = useAuth();
+  const { signOut, isAdmin } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navigation = [
@@ -18,6 +18,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: 'literacy', label: 'Literasi', icon: Book },
     { id: 'health', label: 'Kesehatan', icon: Heart },
     { id: 'gallery', label: 'Galeri', icon: Image },
+    ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: Shield }] : []),
   ];
 
   const handleNavigate = (page: string) => {
