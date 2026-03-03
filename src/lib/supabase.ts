@@ -83,3 +83,20 @@ export interface MPASIRecipe {
   servings: number;
   created_at: string;
 }
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ChildAdminView {
+  id: string;
+  name: string;
+  birth_date: string;
+  gender: 'male' | 'female';
+  user_id: string;
+  user_profiles: Pick<UserProfile, 'email' | 'full_name'> | null;
+}
