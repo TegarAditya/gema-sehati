@@ -120,7 +120,7 @@ export function MPASI() {
                     <ul className="space-y-1">
                       {recipe.ingredients.split('\n').map((ingredient, idx) => (
                         <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
-                          <span className="text-blue-600 mt-1">•</span>
+                          <span className="text-blue-600">•</span>
                           <span>{ingredient}</span>
                         </li>
                       ))}
