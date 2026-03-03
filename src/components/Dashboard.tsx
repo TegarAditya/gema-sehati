@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { supabase, Child, ReadingLog, GrowthRecord, ImmunizationRecord } from '../lib/supabase';
+import { supabase, Child, ReadingLog, ImmunizationRecord } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Book, TrendingUp, Calendar, Baby, Plus } from 'lucide-react';
+import { Book, Calendar, Baby, Plus, Edit2, Trash2 } from 'lucide-react';
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -12,6 +12,10 @@ export function Dashboard() {
   const [newChildName, setNewChildName] = useState('');
   const [newChildBirthDate, setNewChildBirthDate] = useState('');
   const [newChildGender, setNewChildGender] = useState<'male' | 'female'>('male');
+  const [editingChildId, setEditingChildId] = useState<string | null>(null);
+  const [editChildName, setEditChildName] = useState('');
+  const [editChildBirthDate, setEditChildBirthDate] = useState('');
+  const [editChildGender, setEditChildGender] = useState<'male' | 'female'>('male');
 
   useEffect(() => {
     loadDashboardData();
@@ -76,6 +80,55 @@ export function Dashboard() {
       setShowAddChild(false);
       loadDashboardData();
     }
+  };
+
+  const handleEditChild = (child: Child) => {
+    setEditingChildId(child.id);
+    setEditChildName(child.name);
+    setEditChildBirthDate(child.birth_date);
+    setEditChildGender(child.gender);
+  };
+
+  const handleUpdateChild = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingChildId || !editChildName.trim() || !editChildBirthDate) return;
+
+    const { error } = await supabase
+      .from('children')
+      .update({
+        name: editChildName,
+        birth_date: editChildBirthDate,
+        gender: editChildGender,
+      })
+      .eq('id', editingChildId);
+
+    if (!error) {
+      setEditingChildId(null);
+      setEditChildName('');
+      setEditChildBirthDate('');
+      setEditChildGender('male');
+      loadDashboardData();
+    }
+  };
+
+  const handleDeleteChild = async (childId: string) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus data anak ini?')) {
+      const { error } = await supabase
+        .from('children')
+        .delete()
+        .eq('id', childId);
+
+      if (!error) {
+        loadDashboardData();
+      }
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingChildId(null);
+    setEditChildName('');
+    setEditChildBirthDate('');
+    setEditChildGender('male');
   };
 
   const getChildName = (childId: string) => {
@@ -161,6 +214,52 @@ export function Dashboard() {
               const years = Math.floor(ageInMonths / 12);
               const months = ageInMonths % 12;
 
+              if (editingChildId === child.id) {
+                return (
+                  <form key={child.id} onSubmit={handleUpdateChild} className="bg-white rounded-xl p-4 shadow-sm border-2 border-blue-500 space-y-3">
+                    <h4 className="font-semibold text-gray-900">Edit Data Anak</h4>
+                    <input
+                      type="text"
+                      placeholder="Nama anak"
+                      value={editChildName}
+                      onChange={(e) => setEditChildName(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      required
+                    />
+                    <input
+                      type="date"
+                      value={editChildBirthDate}
+                      onChange={(e) => setEditChildBirthDate(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      required
+                    />
+                    <select
+                      value={editChildGender}
+                      onChange={(e) => setEditChildGender(e.target.value as 'male' | 'female')}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    >
+                      <option value="male">Laki-laki</option>
+                      <option value="female">Perempuan</option>
+                    </select>
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium"
+                      >
+                        Simpan Perubahan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  </form>
+                );
+              }
+
               return (
                 <div key={child.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
                   <div className="flex items-start justify-between mb-2">
@@ -177,9 +276,24 @@ export function Dashboard() {
                       {child.gender === 'male' ? 'Laki-laki' : 'Perempuan'}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 mb-3">
                     Lahir: {new Date(child.birth_date).toLocaleDateString('id-ID')}
                   </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEditChild(child)}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition text-sm font-medium"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteChild(child.id)}
+                      className="flex items-center justify-center px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
