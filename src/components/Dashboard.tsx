@@ -137,7 +137,7 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6 pb-6">
-      <div className="bg-gradient-to-r from-blue-500 to-green-500 rounded-2xl p-6 text-white">
+      <div className="bg-gradient-to-r from-blue-500 via-purple-400 to-rose-300 rounded-2xl p-6 text-white">
         <h2 className="text-2xl font-bold mb-2">Selamat Datang!</h2>
         <p className="text-blue-50">Mari pantau tumbuh kembang dan literasi keluarga Anda</p>
       </div>
