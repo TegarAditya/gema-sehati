@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase, Child, ReadingLog, ImmunizationRecord } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Book, Calendar, Baby, Plus, Edit2, Trash2 } from 'lucide-react';
@@ -17,11 +17,7 @@ export function Dashboard() {
   const [editChildBirthDate, setEditChildBirthDate] = useState('');
   const [editChildGender, setEditChildGender] = useState<'male' | 'female'>('male');
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [user]);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     if (!user) return;
 
     const { data: childrenData } = await supabase
@@ -58,7 +54,11 @@ export function Dashboard() {
         if (vaccineData) setUpcomingVaccines(vaccineData);
       }
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const handleAddChild = async (e: React.FormEvent) => {
     e.preventDefault();

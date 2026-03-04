@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Home, Book, Heart, Image, LogOut, Menu, Shield, X } from 'lucide-react';
+import { Home, Book, Heart, Image, LogOut, Menu, Shield, User, X } from 'lucide-react';
 import { useState } from 'react';
 
 interface LayoutProps {
@@ -18,6 +18,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: 'literacy', label: 'Literasi', icon: Book },
     { id: 'health', label: 'Kesehatan', icon: Heart },
     { id: 'gallery', label: 'Galeri', icon: Image },
+    { id: 'profil', label: 'Profil', icon: User },
     ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: Shield }] : []),
   ];
 

@@ -6,6 +6,7 @@ import { Dashboard } from './components/Dashboard';
 import { Literacy } from './components/Literacy';
 import { Health } from './components/Health';
 import { Gallery } from './components/Gallery';
+import { Profile } from './components/Profile';
 import { Admin } from './components/Admin';
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
       {currentPage === 'literacy' && <Literacy />}
       {currentPage === 'health' && <Health />}
       {currentPage === 'gallery' && <Gallery />}
+      {currentPage === 'profil' && <Profile />}
       {currentPage === 'admin' && (isAdmin ? <Admin /> : <Dashboard />)}
     </Layout>
   );
