@@ -26,6 +26,7 @@ export function Gallery() {
   const [selectedFileName, setSelectedFileName] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [openPersonIconId, setOpenPersonIconId] = useState<string | null>(null);
+  const [userProfiles, setUserProfiles] = useState<{ [key: string]: any }>({});
 
   const [newPhoto, setNewPhoto] = useState({
     child_id: '',
@@ -45,6 +46,20 @@ export function Gallery() {
       }
     };
   }, [previewUrl]);
+
+  useEffect(() => {
+    const fetchAllUserProfiles = async () => {
+      const uniqueUserIds = [...new Set(photos.map((p) => p.user_id))];
+      for (const userId of uniqueUserIds) {
+        if (!userProfiles[userId]) {
+          await fetchUserProfile(userId);
+        }
+      }
+    };
+    if (photos.length > 0) {
+      void fetchAllUserProfiles();
+    }
+  }, [photos]);
 
   const resetAddPhotoState = () => {
     if (previewUrl) {
@@ -102,7 +117,6 @@ export function Gallery() {
     const { data: photosData } = await supabase
       .from('activity_photos')
       .select('*')
-      .eq('user_id', user.id)
       .order('activity_date', { ascending: false });
 
     if (photosData) {
@@ -242,8 +256,39 @@ export function Gallery() {
     return children.find(c => c.id === childId)?.name || 'Anak';
   };
 
+  const isPhotoOwner = (photoUserId: string) => {
+    return user?.id === photoUserId;
+  };
+
+  const fetchUserProfile = async (userId: string) => {
+    if (userProfiles[userId]) {
+      return userProfiles[userId];
+    }
+
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('full_name, email')
+      .eq('id', userId)
+      .single();
+
+    if (data) {
+      setUserProfiles((prev) => ({ ...prev, [userId]: data }));
+      return data;
+    }
+
+    return null;
+  };
+
+  const getPhotoOwnerNameSync = (userId: string) => {
+    const profile = userProfiles[userId];
+    return profile?.full_name || profile?.email?.split('@')[0] || 'User';
+  };
+
   const handleDeletePhoto = async () => {
-    if (!selectedPhoto) return;
+    if (!selectedPhoto || !isPhotoOwner(selectedPhoto.user_id)) {
+      setActionError('Anda hanya dapat menghapus foto Anda sendiri.');
+      return;
+    }
 
     setActionError('');
 
@@ -435,7 +480,7 @@ export function Gallery() {
               <div className="p-4">
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <span className="text-sm font-medium text-gray-900">
-                    {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
+                    {getPhotoOwnerNameSync(photo.user_id)}
                   </span>
                 </div>
                 <span className="text-xs text-gray-500 flex items-center gap-1">
@@ -463,20 +508,22 @@ export function Gallery() {
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-gray-900">
-                  {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
+                  {selectedPhoto ? getPhotoOwnerNameSync(selectedPhoto.user_id) : 'User'}
                 </h3>
                 {selectedPhoto?.child_id && (
                   <p className="text-xs text-gray-500">Bersama {getChildName(selectedPhoto.child_id)}</p>
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition"
-                  title="Hapus foto"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+                {isPhotoOwner(selectedPhoto?.user_id || '') && (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition"
+                    title="Hapus foto"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                )}
                 <button
                   onClick={() => setSelectedPhoto(null)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition"
