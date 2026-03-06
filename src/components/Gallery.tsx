@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase, Child, ActivityPhoto } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Image as ImageIcon, Plus, Calendar, X, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Plus, Calendar, X, Trash2, User } from 'lucide-react';
 import {
   buildActivityPhotoStoragePath,
   deletePhotoFromStorage,
@@ -25,6 +25,7 @@ export function Gallery() {
   const [actionSuccess, setActionSuccess] = useState('');
   const [selectedFileName, setSelectedFileName] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
+  const [openPersonIconId, setOpenPersonIconId] = useState<string | null>(null);
 
   const [newPhoto, setNewPhoto] = useState({
     child_id: '',
@@ -402,7 +403,7 @@ export function Gallery() {
               onClick={() => setSelectedPhoto(photo)}
               className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer"
             >
-              <div className="aspect-square relative bg-gray-100">
+              <div className="aspect-square relative bg-gray-100 group">
                 <img
                   src={photo.photo_url}
                   alt={photo.caption}
@@ -411,19 +412,38 @@ export function Gallery() {
                     e.currentTarget.src = 'https://images.pexels.com/photos/1648387/pexels-photo-1648387.jpeg?auto=compress&cs=tinysrgb&w=400';
                   }}
                 />
+                <div className="absolute bottom-0 left-0 p-2">
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenPersonIconId(openPersonIconId === photo.id ? null : photo.id);
+                      }}
+                      className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 rounded-full transition"
+                      title="Lihat anak yang ditag"
+                    >
+                      <User className="w-4 h-4 text-white" />
+                    </button>
+                    {openPersonIconId === photo.id && (
+                      <div className="absolute left-12 bottom-2 bg-gray-900 text-white text-xs rounded px-3 py-1.5 whitespace-nowrap shadow-lg animate-in slide-in-from-left-2 duration-200">
+                        {getChildName(photo.child_id)}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                    {getChildName(photo.child_id)}
-                  </span>
-                  <span className="text-xs text-gray-500 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {new Date(photo.activity_date).toLocaleDateString('id-ID')}
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-sm font-medium text-gray-900">
+                    {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
                   </span>
                 </div>
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  {new Date(photo.activity_date).toLocaleDateString('id-ID')}
+                </span>
                 {photo.caption && (
-                  <p className="text-sm text-gray-700 line-clamp-2">{photo.caption}</p>
+                  <p className="text-sm text-gray-700 line-clamp-2 mt-2">{photo.caption}</p>
                 )}
               </div>
             </div>
@@ -441,7 +461,14 @@ export function Gallery() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">{getChildName(selectedPhoto.child_id)}</h3>
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
+                </h3>
+                {selectedPhoto?.child_id && (
+                  <p className="text-xs text-gray-500">Bersama {getChildName(selectedPhoto.child_id)}</p>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
