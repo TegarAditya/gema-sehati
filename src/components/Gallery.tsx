@@ -2,6 +2,16 @@ import { useEffect, useState } from 'react';
 import { supabase, Child, ActivityPhoto } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Image as ImageIcon, Plus, Calendar, X, Trash2 } from 'lucide-react';
+import {
+  buildActivityPhotoStoragePath,
+  deletePhotoFromStorage,
+  getFileExtensionFromMimeType,
+  getPublicPhotoUrl,
+  getStoragePathFromPhoto,
+  validateSourcePhoto,
+  uploadPhotoToStorage,
+} from '../lib/storage';
+import { transformPhotoForUpload } from '../lib/imageTransform';
 
 export function Gallery() {
   const { user } = useAuth();
@@ -10,20 +20,67 @@ export function Gallery() {
   const [showAddPhoto, setShowAddPhoto] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<ActivityPhoto | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isSubmittingPhoto, setIsSubmittingPhoto] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [actionSuccess, setActionSuccess] = useState('');
+  const [selectedFileName, setSelectedFileName] = useState('');
+  const [previewUrl, setPreviewUrl] = useState('');
 
   const [newPhoto, setNewPhoto] = useState({
     child_id: '',
-    photo_url: '',
+    file: null as File | null,
     caption: '',
     activity_date: new Date().toISOString().split('T')[0],
   });
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, [user]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  const resetAddPhotoState = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    setPreviewUrl('');
+    setSelectedFileName('');
+    setNewPhoto({
+      child_id: children[0]?.id || '',
+      file: null,
+      caption: '',
+      activity_date: new Date().toISOString().split('T')[0],
+    });
+  };
+
+  const toggleAddPhoto = () => {
+    setActionError('');
+    setActionSuccess('');
+
+    if (showAddPhoto) {
+      resetAddPhotoState();
+      setShowAddPhoto(false);
+      return;
+    }
+
+    setNewPhoto((prev) => ({
+      ...prev,
+      child_id: prev.child_id || children[0]?.id || '',
+    }));
+    setShowAddPhoto(true);
+  };
 
   const loadData = async () => {
     if (!user) return;
+
+    setActionError('');
 
     const { data: childrenData } = await supabase
       .from('children')
@@ -33,8 +90,11 @@ export function Gallery() {
 
     if (childrenData) {
       setChildren(childrenData);
-      if (childrenData.length > 0 && !newPhoto.child_id) {
-        setNewPhoto({ ...newPhoto, child_id: childrenData[0].id });
+      if (childrenData.length > 0) {
+        setNewPhoto((prev) => {
+          if (prev.child_id) return prev;
+          return { ...prev, child_id: childrenData[0].id };
+        });
       }
     }
 
@@ -44,32 +104,135 @@ export function Gallery() {
       .eq('user_id', user.id)
       .order('activity_date', { ascending: false });
 
-    if (photosData) setPhotos(photosData);
+    if (photosData) {
+      const normalizedPhotos = photosData.map((photo) => {
+        if (photo.photo_url) return photo;
+
+        if (photo.storage_path) {
+          return {
+            ...photo,
+            photo_url: getPublicPhotoUrl(photo.storage_path),
+          };
+        }
+
+        return photo;
+      });
+
+      setPhotos(normalizedPhotos);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setActionError('');
+    setActionSuccess('');
+
+    if (!file) {
+      setNewPhoto((prev) => ({ ...prev, file: null }));
+      setSelectedFileName('');
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl('');
+      }
+      return;
+    }
+
+    const validationError = validateSourcePhoto(file);
+    if (validationError) {
+      setActionError(validationError);
+      e.target.value = '';
+      return;
+    }
+
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    const nextPreviewUrl = URL.createObjectURL(file);
+    setPreviewUrl(nextPreviewUrl);
+    setSelectedFileName(file.name);
+    setNewPhoto((prev) => ({ ...prev, file }));
   };
 
   const handleAddPhoto = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !newPhoto.photo_url) return;
+    if (!user || !newPhoto.file || isSubmittingPhoto) return;
 
-    const { error } = await supabase
-      .from('activity_photos')
-      .insert({
-        user_id: user.id,
-        child_id: newPhoto.child_id || null,
-        photo_url: newPhoto.photo_url,
-        caption: newPhoto.caption,
-        activity_date: newPhoto.activity_date,
-      });
+    setActionError('');
+    setActionSuccess('');
+    setIsSubmittingPhoto(true);
 
-    if (!error) {
-      setNewPhoto({
-        child_id: children[0]?.id || '',
-        photo_url: '',
-        caption: '',
-        activity_date: new Date().toISOString().split('T')[0],
-      });
+    const validationError = validateSourcePhoto(newPhoto.file);
+    if (validationError) {
+      setActionError(validationError);
+      setIsSubmittingPhoto(false);
+      return;
+    }
+
+    let insertedPhotoId: string | null = null;
+    let uploadedStoragePath: string | null = null;
+
+    try {
+      const transformed = await transformPhotoForUpload(newPhoto.file);
+      const extension = getFileExtensionFromMimeType(transformed.file.type);
+
+      const { data: insertedPhoto, error: insertError } = await supabase
+        .from('activity_photos')
+        .insert({
+          user_id: user.id,
+          child_id: newPhoto.child_id || null,
+          photo_url: '',
+          caption: newPhoto.caption,
+          activity_date: newPhoto.activity_date,
+        })
+        .select('id')
+        .single();
+
+      if (insertError || !insertedPhoto) {
+        throw new Error(insertError?.message || 'Gagal menyimpan data foto.');
+      }
+
+      const photoId = insertedPhoto.id;
+      insertedPhotoId = photoId;
+      const storagePath = buildActivityPhotoStoragePath(user.id, photoId, extension);
+      uploadedStoragePath = storagePath;
+
+      const uploadError = await uploadPhotoToStorage(storagePath, transformed.file);
+      if (uploadError) {
+        throw new Error(uploadError);
+      }
+
+      const publicUrl = getPublicPhotoUrl(storagePath);
+      const { error: updateError } = await supabase
+        .from('activity_photos')
+        .update({
+          photo_url: publicUrl,
+          storage_path: storagePath,
+        })
+        .eq('id', photoId);
+
+      if (updateError) {
+        throw new Error(updateError.message || 'Gagal memperbarui metadata foto.');
+      }
+
+      setActionSuccess('Foto berhasil diunggah dan dioptimalkan.');
+      resetAddPhotoState();
       setShowAddPhoto(false);
-      loadData();
+      await loadData();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Terjadi kesalahan saat mengunggah foto.';
+
+      if (uploadedStoragePath) {
+        await deletePhotoFromStorage(uploadedStoragePath);
+      }
+
+      if (insertedPhotoId) {
+        await supabase.from('activity_photos').delete().eq('id', insertedPhotoId);
+      }
+
+      setActionError(message);
+    } finally {
+      setIsSubmittingPhoto(false);
     }
   };
 
@@ -81,6 +244,17 @@ export function Gallery() {
   const handleDeletePhoto = async () => {
     if (!selectedPhoto) return;
 
+    setActionError('');
+
+    const storagePath = selectedPhoto.storage_path || getStoragePathFromPhoto(selectedPhoto.photo_url);
+    if (storagePath) {
+      const storageDeleteError = await deletePhotoFromStorage(storagePath);
+      if (storageDeleteError) {
+        setActionError(`Gagal menghapus file di storage: ${storageDeleteError}`);
+        return;
+      }
+    }
+
     const { error } = await supabase
       .from('activity_photos')
       .delete()
@@ -89,8 +263,12 @@ export function Gallery() {
     if (!error) {
       setSelectedPhoto(null);
       setShowDeleteConfirm(false);
-      loadData();
+      setActionSuccess('Foto berhasil dihapus.');
+      await loadData();
+      return;
     }
+
+    setActionError(error.message || 'Gagal menghapus data foto.');
   };
 
   return (
@@ -101,7 +279,7 @@ export function Gallery() {
           Galeri <span className="hidden sm:block">Kegiatan</span>
         </h2>
         <button
-          onClick={() => setShowAddPhoto(!showAddPhoto)}
+          onClick={toggleAddPhoto}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
         >
           <Plus className="w-5 h-5" />
@@ -109,23 +287,42 @@ export function Gallery() {
         </button>
       </div>
 
+      {actionError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+          {actionError}
+        </div>
+      )}
+
+      {actionSuccess && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+          {actionSuccess}
+        </div>
+      )}
+
       {showAddPhoto && (
         <form onSubmit={handleAddPhoto} className="bg-white rounded-xl p-6 shadow-sm space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              URL Foto
+              Upload Foto
             </label>
             <input
-              type="url"
-              placeholder="https://example.com/photo.jpg"
-              value={newPhoto.photo_url}
-              onChange={(e) => setNewPhoto({ ...newPhoto, photo_url: e.target.value })}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleFileChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               required
             />
             <p className="text-xs text-gray-500 mt-1">
-              Gunakan link foto dari Pexels, Unsplash, atau layanan hosting gambar lainnya
+              Format didukung: JPG, PNG, WebP. Ukuran maksimal 5 MB. Foto akan dioptimalkan otomatis sebelum disimpan.
             </p>
+            {selectedFileName && (
+              <p className="text-sm text-gray-700 mt-2">File terpilih: {selectedFileName}</p>
+            )}
+            {previewUrl && (
+              <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 w-full max-w-xs">
+                <img src={previewUrl} alt="Preview upload" className="w-full h-40 object-cover" />
+              </div>
+            )}
           </div>
 
           {children.length > 0 && (
@@ -135,7 +332,7 @@ export function Gallery() {
               </label>
               <select
                 value={newPhoto.child_id}
-                onChange={(e) => setNewPhoto({ ...newPhoto, child_id: e.target.value })}
+                onChange={(e) => setNewPhoto((prev) => ({ ...prev, child_id: e.target.value }))}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               >
                 <option value="">Kegiatan Keluarga</option>
@@ -153,7 +350,7 @@ export function Gallery() {
             <input
               type="date"
               value={newPhoto.activity_date}
-              onChange={(e) => setNewPhoto({ ...newPhoto, activity_date: e.target.value })}
+              onChange={(e) => setNewPhoto((prev) => ({ ...prev, activity_date: e.target.value }))}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               required
             />
@@ -166,7 +363,7 @@ export function Gallery() {
             <textarea
               placeholder="Ceritakan tentang kegiatan ini..."
               value={newPhoto.caption}
-              onChange={(e) => setNewPhoto({ ...newPhoto, caption: e.target.value })}
+              onChange={(e) => setNewPhoto((prev) => ({ ...prev, caption: e.target.value }))}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               rows={3}
             />
@@ -175,13 +372,14 @@ export function Gallery() {
           <div className="flex gap-2">
             <button
               type="submit"
-              className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium"
+              disabled={isSubmittingPhoto}
+              className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Simpan
+              {isSubmittingPhoto ? 'Mengunggah...' : 'Simpan'}
             </button>
             <button
               type="button"
-              onClick={() => setShowAddPhoto(false)}
+              onClick={toggleAddPhoto}
               className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
             >
               Batal

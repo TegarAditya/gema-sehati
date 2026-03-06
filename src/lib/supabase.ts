@@ -54,6 +54,7 @@ export interface ActivityPhoto {
   user_id: string;
   child_id: string | null;
   photo_url: string;
+  storage_path?: string | null;
   caption: string;
   activity_date: string;
   created_at: string;
