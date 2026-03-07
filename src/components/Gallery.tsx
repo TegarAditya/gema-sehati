@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase, Child, ActivityPhoto } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Image as ImageIcon, Plus, Calendar, X, Trash2, User } from 'lucide-react';
+import { Image as ImageIcon, Plus, Calendar, X, Trash2, User, Grid3x3, Grid2x2, LayoutGrid } from 'lucide-react';
 import {
   buildActivityPhotoStoragePath,
   deletePhotoFromStorage,
@@ -27,6 +27,7 @@ export function Gallery() {
   const [previewUrl, setPreviewUrl] = useState('');
   const [openPersonIconId, setOpenPersonIconId] = useState<string | null>(null);
   const [userProfiles, setUserProfiles] = useState<{ [key: string]: any }>({});
+  const [viewMode, setViewMode] = useState<'compact' | 'standard' | 'spacious'>('standard');
 
   const [newPhoto, setNewPhoto] = useState({
     child_id: '',
@@ -38,6 +39,17 @@ export function Gallery() {
   useEffect(() => {
     void loadData();
   }, [user]);
+
+  useEffect(() => {
+    const savedViewMode = localStorage.getItem('galleryViewMode');
+    if (savedViewMode && ['compact', 'standard', 'spacious'].includes(savedViewMode)) {
+      setViewMode(savedViewMode as 'compact' | 'standard' | 'spacious');
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('galleryViewMode', viewMode);
+  }, [viewMode]);
 
   useEffect(() => {
     return () => {
@@ -333,6 +345,36 @@ export function Gallery() {
         </button>
       </div>
 
+      <div className="flex items-center bg-white rounded-lg border border-gray-200 p-1 gap-1 w-fit">
+        <button
+          onClick={() => setViewMode('compact')}
+          className={`p-2 rounded-md transition ${
+            viewMode === 'compact' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+          }`}
+          title="Tampilan Kompak"
+        >
+          <LayoutGrid className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setViewMode('standard')}
+          className={`p-2 rounded-md transition ${
+            viewMode === 'standard' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+          }`}
+          title="Tampilan Standar"
+        >
+          <Grid3x3 className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setViewMode('spacious')}
+          className={`p-2 rounded-md transition ${
+            viewMode === 'spacious' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+          }`}
+          title="Tampilan Luas"
+        >
+          <Grid2x2 className="w-4 h-4" />
+        </button>
+      </div>
+
       {actionError && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
           {actionError}
@@ -441,7 +483,11 @@ export function Gallery() {
           <p className="text-gray-600">Mulai dokumentasikan kegiatan keluarga Anda</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className={`grid gap-4 ${
+          viewMode === 'compact' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3' :
+          viewMode === 'spacious' ? 'grid-cols-1 sm:grid-cols-2 gap-6' :
+          'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+        }`}>
           {photos.map((photo) => (
             <div
               key={photo.id}
@@ -454,7 +500,7 @@ export function Gallery() {
                   alt={photo.caption}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.currentTarget.src = 'https://images.pexels.com/photos/1648387/pexels-photo-1648387.jpeg?auto=compress&cs=tinysrgb&w=400';
+                    e.currentTarget.src = 'https://images.pexels.com/photos/1888015/pexels-photo-1888015.jpeg?auto=compress&cs=tinysrgb&w=400';
                   }}
                 />
                 <div className="absolute bottom-0 left-0 p-2">
@@ -488,7 +534,9 @@ export function Gallery() {
                   {new Date(photo.activity_date).toLocaleDateString('id-ID')}
                 </span>
                 {photo.caption && (
-                  <p className="text-sm text-gray-700 line-clamp-2 mt-2">{photo.caption}</p>
+                  <p className={`text-sm text-gray-700 mt-2 ${
+                    viewMode === 'compact' ? 'line-clamp-1' : 'line-clamp-2'
+                  }`}>{photo.caption}</p>
                 )}
               </div>
             </div>
