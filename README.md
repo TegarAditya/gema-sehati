@@ -38,11 +38,32 @@
 - Filter photos by child
 - Safe cloud storage with Supabase
 
+### � Profile Management
+- **User Profile**: Update full name and personal information
+- **Password Management**: Change password securely
+- Profile synchronization across authentication and database
+
+### 🛡️ Admin Dashboard
+- **Overview Tab**: Real-time statistics (total users, children, reading logs, immunization rates)
+- **User Management**: View all users, search functionality, activate/suspend user accounts
+- **Children Management**: View all children across the platform with search and filtering
+- **Content Management**: 
+  - Create, edit, and delete stories in the story library
+  - Manage MPASI recipes (add, update, remove)
+- **Analytics Dashboard**:
+  - Growth statistics (average height/weight across all children)
+  - Immunization coverage with visual progress indicators
+  - Monthly reading trends (last 6 months)
+  - CSV data export for all major data types (children, growth records, reading logs, immunization data)
+- **Admin-only Access**: Restricted to users with admin privileges
+
 ### 🔐 Authentication & Security
 - Secure user authentication via Supabase Auth
 - Row-Level Security (RLS) policies
 - Each family has private, isolated data
 - Email-based authentication
+- User profile system with account status management
+- Admin role-based access control
 
 ## 🛠️ Tech Stack
 
@@ -103,16 +124,33 @@ Before you begin, ensure you have the following installed:
 
 5. **Run database migrations**
    
-   Execute the SQL files in `supabase/migrations/` in your Supabase SQL Editor:
-   - `20260224053301_create_family_app_schema.sql`
-   - `20260228040030_add_mpasi_recipes.sql`
+   Execute the SQL files in `supabase/migrations/` in your Supabase SQL Editor (in order):
+   - `20260224053301_create_family_app_schema.sql` - Core schema (children, reading, health, gallery)
+   - `20260228040030_add_mpasi_recipes.sql` - MPASI recipe system
+   - `20260303090000_add_admin_dashboard_access.sql` - Admin system with user profiles
+   - `20260304103000_allow_user_update_own_profile.sql` - User profile self-service
+   - `20260306110000_add_activity_photo_public_storage.sql` - Public storage bucket for photos
 
 6. **Enable Storage Bucket** (for photo uploads)
    
    In your Supabase Dashboard:
    - Go to Storage
    - Create a new bucket named `activity-photos`
-   - Set the bucket to public or configure appropriate RLS policies
+   - Set the bucket to public (RLS policies are already configured)
+
+7. **Set up Admin User** (optional)
+   
+   To grant admin access to a user:
+   - Go to Supabase Dashboard → Authentication → Users
+   - Find the user and click to edit
+   - In the "User Metadata" section, add:
+     ```json
+     {
+       "is_admin": true
+     }
+     ```
+   - Save changes
+   - The user will have access to the Admin panel on next login
 
 ## 💻 Development
 
@@ -163,17 +201,32 @@ gema-sehati/
 │   │   ├── Health.tsx      # Health tracking
 │   │   ├── Literacy.tsx    # Reading logs & stories
 │   │   ├── Gallery.tsx     # Photo gallery
+│   │   ├── Profile.tsx     # User profile & password management
 │   │   ├── Layout.tsx      # App layout wrapper
-│   │   └── MPASI.tsx       # Baby food recipes
+│   │   ├── MPASI.tsx       # Baby food recipes
+│   │   └── Admin/          # Admin dashboard components
+│   │       ├── index.tsx          # Main admin component
+│   │       ├── OverviewTab.tsx    # Statistics overview
+│   │       ├── UsersTab.tsx       # User management
+│   │       ├── ChildrenTab.tsx    # Children management
+│   │       ├── StoriesTab.tsx     # Story content management
+│   │       ├── MPASITab.tsx       # Recipe management
+│   │       ├── AnalyticsTab.tsx   # Analytics & CSV export
+│   │       ├── types.ts           # TypeScript definitions
+│   │       └── utils.ts           # Helper functions
 │   ├── contexts/           # React contexts
 │   │   └── AuthContext.tsx # Authentication state
 │   ├── lib/                # Utilities
-│   │   └── supabase.ts     # Supabase client & types
+│   │   ├── supabase.ts     # Supabase client & types
+│   │   ├── storage.ts      # Storage utilities
+│   │   └── imageTransform.ts # Image transformation helpers
 │   ├── App.tsx             # Main app component
 │   ├── main.tsx            # App entry point
 │   └── index.css           # Global styles
 ├── supabase/
 │   └── migrations/         # Database migrations
+├── scripts/
+│   └── seed-content.mjs    # Content seeding script
 ├── public/                 # Static assets
 ├── index.html              # HTML template
 ├── vite.config.ts          # Vite configuration
@@ -186,15 +239,19 @@ gema-sehati/
 
 The application uses the following main tables:
 
+- **user_profiles** - User profile information (full_name, email, is_active status)
 - **children** - Child profiles with name, birth date, and gender
 - **reading_logs** - Daily reading activity tracking
-- **growth_records** - Height and weight measurements
-- **immunization_records** - Vaccination schedule and completion
-- **stories** - Collection of children's stories
-- **activity_photos** - Family activity photo gallery
-- **mpasi_recipes** - Baby food recipes with ingredients and instructions
+- **growth_records** - Height and weight measurements with BMI status
+- **immunization_records** - Vaccination schedule and completion tracking
+- **stories** - Collection of children's stories (admin-managed)
+- **activity_photos** - Family activity photo gallery with cloud storage paths
+- **mpasi_recipes** - Baby food recipes with ingredients, instructions, and nutrition info (admin-managed)
 
-All tables implement Row-Level Security (RLS) to ensure data privacy.
+**Storage Buckets:**
+- **activity-photos** - Public bucket for family photos with user-scoped RLS policies
+
+All tables implement Row-Level Security (RLS) to ensure data privacy. Admin access is controlled via JWT metadata (`is_admin` flag).
 
 ## 🎯 Usage
 
@@ -223,6 +280,19 @@ All tables implement Row-Level Security (RLS) to ensure data privacy.
    - Open "Galeri" section
    - Upload family photos with captions
    - Organize by date and child
+
+6. **Manage Profile**
+   - Navigate to "Profil" section
+   - Update your full name and personal information
+   - Change your password securely
+
+7. **Admin Functions** (Admin users only)
+   - Access "Admin" panel from navigation
+   - View platform-wide statistics and analytics
+   - Manage user accounts (activate/suspend)
+   - Create and manage story library content
+   - Add and edit MPASI recipes
+   - Export data to CSV for analysis
 
 <!-- ## 🤝 Contributing
 
