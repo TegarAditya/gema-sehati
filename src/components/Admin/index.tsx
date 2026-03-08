@@ -206,6 +206,25 @@ export function Admin() {
     }
   };
 
+  const handleReorderVideos = async (reorderedVideos: Video[]) => {
+    try {
+      // Update all videos with new display_order values
+      await Promise.all(
+        reorderedVideos.map(video =>
+          supabase
+            .from('videos')
+            .update({ display_order: video.display_order })
+            .eq('id', video.id)
+        )
+      );
+
+      // Reload data to ensure consistency
+      await loadAdminData();
+    } catch (error) {
+      console.error('Error reordering videos:', error);
+    }
+  };
+
   if (!isAdmin) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
@@ -342,6 +361,7 @@ export function Admin() {
             setEditingVideoId(null);
             setVideoForm(defaultVideoForm);
           }}
+          onReorderVideos={handleReorderVideos}
         />
       )}
 

@@ -1,7 +1,7 @@
-import { FormEvent } from 'react';
+import { FormEvent, useState } from 'react';
 import { Video } from '../../lib/supabase';
 import { VideoForm } from './types';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react';
 
 interface VideosTabProps {
   videos: Video[];
@@ -12,6 +12,7 @@ interface VideosTabProps {
   onDeleteVideo: (videoId: string) => void;
   onVideoFormChange: (form: VideoForm) => void;
   onCancelEdit: () => void;
+  onReorderVideos: (reorderedVideos: Video[]) => void;
 }
 
 export function VideosTab({
@@ -23,7 +24,57 @@ export function VideosTab({
   onDeleteVideo,
   onVideoFormChange,
   onCancelEdit,
+  onReorderVideos,
 }: VideosTabProps) {
+  const [draggedVideo, setDraggedVideo] = useState<string | null>(null);
+  const [dragOverVideo, setDragOverVideo] = useState<string | null>(null);
+
+  const handleDragStart = (videoId: string) => {
+    setDraggedVideo(videoId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, videoId: string) => {
+    e.preventDefault();
+    setDragOverVideo(videoId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverVideo(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetVideoId: string) => {
+    e.preventDefault();
+    if (!draggedVideo || draggedVideo === targetVideoId) {
+      setDraggedVideo(null);
+      setDragOverVideo(null);
+      return;
+    }
+
+    const draggedIndex = videos.findIndex(v => v.id === draggedVideo);
+    const targetIndex = videos.findIndex(v => v.id === targetVideoId);
+
+    // Reorder videos array
+    const newVideos = [...videos];
+    const [movedVideo] = newVideos.splice(draggedIndex, 1);
+    newVideos.splice(targetIndex, 0, movedVideo);
+
+    // Update display_order for all affected videos
+    const updatedVideos = newVideos.map((video, index) => ({
+      ...video,
+      display_order: index + 1,
+    }));
+
+    // Call handler to update database
+    onReorderVideos(updatedVideos);
+
+    setDraggedVideo(null);
+    setDragOverVideo(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedVideo(null);
+    setDragOverVideo(null);
+  };
   return (
     <div className="space-y-4">
       <form onSubmit={onSubmitVideo} className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
@@ -78,9 +129,14 @@ export function VideosTab({
       </form>
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="px-4 py-2 bg-blue-50 border-b border-gray-200">
+          <p className="text-sm text-blue-700 font-medium">💡 Tip: Drag videos by the grip icon to reorder them</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" style={{ minWidth: '600px' }}>
           <thead className="bg-gray-50 text-left">
             <tr>
+              <th className="px-4 py-3 w-8"></th>
               <th className="px-4 py-3">Title</th>
               <th className="px-4 py-3">YouTube ID</th>
               <th className="px-4 py-3">Order</th>
@@ -90,10 +146,28 @@ export function VideosTab({
           </thead>
           <tbody>
             {videos.map((video) => (
-              <tr key={video.id} className="border-t border-gray-100">
+              <tr
+                key={video.id}
+                draggable
+                onDragStart={() => handleDragStart(video.id)}
+                onDragOver={(e) => handleDragOver(e, video.id)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, video.id)}
+                onDragEnd={handleDragEnd}
+                className={`border-t border-gray-100 transition cursor-move ${
+                  draggedVideo === video.id
+                    ? 'opacity-50 bg-gray-100'
+                    : dragOverVideo === video.id
+                    ? 'bg-blue-50 border-t-2 border-blue-400'
+                    : ''
+                }`}
+              >
+                <td className="px-4 py-3 text-gray-400 hover:text-gray-600">
+                  <GripVertical className="w-4 h-4" />
+                </td>
                 <td className="px-4 py-3 font-medium">{video.title}</td>
                 <td className="px-4 py-3 font-mono text-xs text-gray-600">{video.youtube_id}</td>
-                <td className="px-4 py-3">{video.display_order}</td>
+                <td className="px-4 py-3 font-semibold text-blue-600">{video.display_order}</td>
                 <td className="px-4 py-3 text-gray-600 text-xs">{video.description.substring(0, 50)}{video.description.length > 50 ? '...' : ''}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -115,6 +189,7 @@ export function VideosTab({
             ))}
           </tbody>
         </table>
+        </div>
         {videos.length === 0 && (
           <div className="text-center py-8 text-gray-500">
             No videos yet. Add one to get started!
