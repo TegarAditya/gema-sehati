@@ -365,7 +365,7 @@ export function Gallery() {
         </button>
         <button
           onClick={() => setViewMode('spacious')}
-          className={`p-2 rounded-md transition ${
+          className={`p-2 rounded-md transition hidden md:block ${
             viewMode === 'spacious' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
           }`}
           title="Tampilan Luas"
