@@ -27,7 +27,13 @@ export function Gallery() {
   const [previewUrl, setPreviewUrl] = useState('');
   const [openPersonIconId, setOpenPersonIconId] = useState<string | null>(null);
   const [userProfiles, setUserProfiles] = useState<{ [key: string]: any }>({});
-  const [viewMode, setViewMode] = useState<'compact' | 'standard' | 'spacious'>('standard');
+  const [viewMode, setViewMode] = useState<'compact' | 'standard' | 'spacious'>(() => {
+    const saved = localStorage.getItem('galleryViewMode');
+    if (saved && ['compact', 'standard', 'spacious'].includes(saved)) {
+      return saved as 'compact' | 'standard' | 'spacious';
+    }
+    return 'standard';
+  });
 
   const [newPhoto, setNewPhoto] = useState({
     child_id: '',
@@ -39,13 +45,6 @@ export function Gallery() {
   useEffect(() => {
     void loadData();
   }, [user]);
-
-  useEffect(() => {
-    const savedViewMode = localStorage.getItem('galleryViewMode');
-    if (savedViewMode && ['compact', 'standard', 'spacious'].includes(savedViewMode)) {
-      setViewMode(savedViewMode as 'compact' | 'standard' | 'spacious');
-    }
-  }, []);
 
   useEffect(() => {
     localStorage.setItem('galleryViewMode', viewMode);
@@ -330,7 +329,7 @@ export function Gallery() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="gap-y-6 flex flex-col">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <ImageIcon className="w-7 h-7 text-green-600" />
