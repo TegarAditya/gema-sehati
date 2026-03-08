@@ -1,13 +1,14 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase, Child, GrowthRecord, ImmunizationRecord, MPASIRecipe, ReadingLog, Story, UserProfile } from '../../lib/supabase';
-import { Shield, Users, BookOpen, ChefHat, BarChart3, Baby } from 'lucide-react';
-import { AdminTab, StoryForm, RecipeForm, defaultStoryForm, defaultRecipeForm } from './types';
+import { supabase, Child, GrowthRecord, ImmunizationRecord, MPASIRecipe, ReadingLog, Story, UserProfile, Video } from '../../lib/supabase';
+import { Shield, Users, BookOpen, ChefHat, BarChart3, Baby, Video as VideoIcon } from 'lucide-react';
+import { AdminTab, StoryForm, RecipeForm, VideoForm, defaultStoryForm, defaultRecipeForm, defaultVideoForm } from './types';
 import { OverviewTab } from './OverviewTab';
 import { UsersTab } from './UsersTab';
 import { ChildrenTab } from './ChildrenTab';
 import { StoriesTab } from './StoriesTab';
 import { MPASITab } from './MPASITab';
+import { VideosTab } from './VideosTab';
 import { AnalyticsTab } from './AnalyticsTab';
 
 const itemsPerPage = 10;
@@ -27,6 +28,7 @@ export function Admin() {
   const [children, setChildren] = useState<Child[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [recipes, setRecipes] = useState<MPASIRecipe[]>([]);
+  const [videos, setVideos] = useState<Video[]>([]);
   const [growthRecords, setGrowthRecords] = useState<GrowthRecord[]>([]);
   const [readingLogs, setReadingLogs] = useState<ReadingLog[]>([]);
   const [immunizations, setImmunizations] = useState<ImmunizationRecord[]>([]);
@@ -36,6 +38,9 @@ export function Admin() {
 
   const [recipeForm, setRecipeForm] = useState<RecipeForm>(defaultRecipeForm);
   const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
+
+  const [videoForm, setVideoForm] = useState<VideoForm>(defaultVideoForm);
+  const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -49,11 +54,12 @@ export function Admin() {
   const loadAdminData = async () => {
     setLoading(true);
 
-    const [usersResult, childrenResult, storiesResult, recipesResult, growthResult, readingResult, immunizationResult] = await Promise.all([
+    const [usersResult, childrenResult, storiesResult, recipesResult, videosResult, growthResult, readingResult, immunizationResult] = await Promise.all([
       supabase.from('user_profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('children').select('*').order('created_at', { ascending: false }),
       supabase.from('stories').select('*').order('created_at', { ascending: false }),
       supabase.from('mpasi_recipes').select('*').order('created_at', { ascending: false }),
+      supabase.from('videos').select('*').order('display_order', { ascending: true }),
       supabase.from('growth_records').select('*').order('record_date', { ascending: false }),
       supabase.from('reading_logs').select('*').order('reading_date', { ascending: false }),
       supabase.from('immunization_records').select('*').order('scheduled_date', { ascending: false }),
@@ -63,6 +69,7 @@ export function Admin() {
     if (childrenResult.data) setChildren(childrenResult.data);
     if (storiesResult.data) setStories(storiesResult.data);
     if (recipesResult.data) setRecipes(recipesResult.data);
+    if (videosResult.data) setVideos(videosResult.data);
     if (growthResult.data) setGrowthRecords(growthResult.data);
     if (readingResult.data) setReadingLogs(readingResult.data);
     if (immunizationResult.data) setImmunizations(immunizationResult.data);
@@ -163,6 +170,42 @@ export function Admin() {
     }
   };
 
+  const handleSubmitVideo = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (editingVideoId) {
+      const { error } = await supabase.from('videos').update(videoForm).eq('id', editingVideoId);
+      if (error) return;
+    } else {
+      const { error } = await supabase.from('videos').insert(videoForm);
+      if (error) return;
+    }
+
+    setVideoForm(defaultVideoForm);
+    setEditingVideoId(null);
+    await loadAdminData();
+  };
+
+  const handleEditVideo = (video: Video) => {
+    setEditingVideoId(video.id);
+    setVideoForm({
+      youtube_id: video.youtube_id,
+      title: video.title,
+      description: video.description,
+      display_order: video.display_order,
+    });
+  };
+
+  const handleDeleteVideo = async (videoId: string) => {
+    const confirmed = window.confirm('Delete this video?');
+    if (!confirmed) return;
+
+    const { error } = await supabase.from('videos').delete().eq('id', videoId);
+    if (!error) {
+      await loadAdminData();
+    }
+  };
+
   if (!isAdmin) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
@@ -187,6 +230,7 @@ export function Admin() {
     { id: 'children', label: 'Manage Child', icon: Baby },
     { id: 'stories', label: 'Manage Stories', icon: BookOpen },
     { id: 'mpasi', label: 'Manage MPASI', icon: ChefHat },
+    { id: 'videos', label: 'Manage Videos', icon: VideoIcon },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   ];
 
@@ -281,6 +325,22 @@ export function Admin() {
           onCancelEdit={() => {
             setEditingRecipeId(null);
             setRecipeForm(defaultRecipeForm);
+          }}
+        />
+      )}
+
+      {activeTab === 'videos' && (
+        <VideosTab
+          videos={videos}
+          videoForm={videoForm}
+          editingVideoId={editingVideoId}
+          onSubmitVideo={handleSubmitVideo}
+          onEditVideo={handleEditVideo}
+          onDeleteVideo={handleDeleteVideo}
+          onVideoFormChange={setVideoForm}
+          onCancelEdit={() => {
+            setEditingVideoId(null);
+            setVideoForm(defaultVideoForm);
           }}
         />
       )}

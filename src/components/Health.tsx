@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { supabase, Child, GrowthRecord, ImmunizationRecord } from '../lib/supabase';
+import { supabase, Child, GrowthRecord, ImmunizationRecord, Video } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Heart, TrendingUp, Calendar, Syringe, Plus, CheckCircle, AlertCircle, ChefHat, Video } from 'lucide-react';
+import { Heart, TrendingUp, Calendar, Syringe, Plus, CheckCircle, AlertCircle, ChefHat, Film } from 'lucide-react';
 import { MPASI } from './MPASI';
 
 export function Health() {
@@ -10,6 +10,7 @@ export function Health() {
   const [children, setChildren] = useState<Child[]>([]);
   const [growthRecords, setGrowthRecords] = useState<GrowthRecord[]>([]);
   const [immunizationRecords, setImmunizationRecords] = useState<ImmunizationRecord[]>([]);
+  const [videos, setVideos] = useState<Video[]>([]);
   const [showAddGrowth, setShowAddGrowth] = useState(false);
   const [showAddVaccine, setShowAddVaccine] = useState(false);
 
@@ -64,6 +65,14 @@ export function Health() {
         if (vaccineData) setImmunizationRecords(vaccineData);
       }
     }
+
+    // Fetch videos from database
+    const { data: videosData } = await supabase
+      .from('videos')
+      .select('*')
+      .order('display_order', { ascending: true });
+
+    if (videosData) setVideos(videosData);
   };
 
   const calculateBMI = (heightCm: number, weightKg: number, ageMonths: number): string => {
@@ -223,7 +232,7 @@ export function Health() {
                 : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
-            <Video className="w-5 h-5 inline mr-2" />
+            <Film className="w-5 h-5 inline mr-2" />
             Video Edukasi
           </button>
         </div>
@@ -468,58 +477,33 @@ export function Health() {
                     <p className="text-gray-600">Pelajari lebih lanjut tentang kesehatan keluarga melalui video edukatif</p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
-                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                        <iframe
-                          className="absolute top-0 left-0 w-full h-full"
-                          src="https://www.youtube.com/embed/TQ-dbaNHxBM"
-                          title="Video Edukasi Kesehatan 1"
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        ></iframe>
-                      </div>
-                      <div className="p-4">
-                        <h4 className="font-semibold text-gray-900 mb-2">Video Edukasi 1</h4>
-                        <p className="text-sm text-gray-600">Informasi penting seputar kesehatan keluarga</p>
-                      </div>
+                  {videos.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Film className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                      <p className="text-gray-500">Belum ada video edukasi tersedia</p>
                     </div>
-
-                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
-                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                        <iframe
-                          className="absolute top-0 left-0 w-full h-full"
-                          src="https://www.youtube.com/embed/YY44LLJw6OY"
-                          title="Video Edukasi Kesehatan 2"
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        ></iframe>
-                      </div>
-                      <div className="p-4">
-                        <h4 className="font-semibold text-gray-900 mb-2">Video Edukasi 2</h4>
-                        <p className="text-sm text-gray-600">Tips dan panduan kesehatan untuk keluarga</p>
-                      </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {videos.map((video) => (
+                        <div key={video.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
+                          <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                            <iframe
+                              className="absolute top-0 left-0 w-full h-full"
+                              src={`https://www.youtube.com/embed/${video.youtube_id}`}
+                              title={video.title}
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            ></iframe>
+                          </div>
+                          <div className="p-4">
+                            <h4 className="font-semibold text-gray-900 mb-2">{video.title}</h4>
+                            <p className="text-sm text-gray-600">{video.description}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-
-                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
-                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                        <iframe
-                          className="absolute top-0 left-0 w-full h-full"
-                          src="https://www.youtube.com/embed/o0bcQUBbJbw"
-                          title="Video Edukasi Kesehatan 3"
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        ></iframe>
-                      </div>
-                      <div className="p-4">
-                        <h4 className="font-semibold text-gray-900 mb-2">Video Edukasi 3</h4>
-                        <p className="text-sm text-gray-600">Panduan lengkap untuk kesehatan optimal</p>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
             </>

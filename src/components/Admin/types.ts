@@ -6,9 +6,10 @@ import {
   ReadingLog,
   Story,
   UserProfile,
+  Video,
 } from '../../lib/supabase';
 
-export type AdminTab = 'overview' | 'users' | 'children' | 'stories' | 'mpasi' | 'analytics';
+export type AdminTab = 'overview' | 'users' | 'children' | 'stories' | 'mpasi' | 'videos' | 'analytics';
 
 export type StoryForm = {
   title: string;
@@ -30,6 +31,13 @@ export type RecipeForm = {
   servings: number;
 };
 
+export type VideoForm = {
+  youtube_id: string;
+  title: string;
+  description: string;
+  display_order: number;
+};
+
 export interface AdminState {
   loading: boolean;
   selectedChildId: string | null;
@@ -41,6 +49,7 @@ export interface AdminState {
   children: Child[];
   stories: Story[];
   recipes: MPASIRecipe[];
+  videos: Video[];
   growthRecords: GrowthRecord[];
   readingLogs: ReadingLog[];
   immunizations: ImmunizationRecord[];
@@ -48,6 +57,8 @@ export interface AdminState {
   editingStoryId: string | null;
   recipeForm: RecipeForm;
   editingRecipeId: string | null;
+  videoForm: VideoForm;
+  editingVideoId: string | null;
 }
 
 export const defaultStoryForm: StoryForm = {
@@ -68,4 +79,11 @@ export const defaultRecipeForm: RecipeForm = {
   allergenic_warning: '',
   prep_time_minutes: 15,
   servings: 1,
+};
+
+export const defaultVideoForm: VideoForm = {
+  youtube_id: '',
+  title: '',
+  description: '',
+  display_order: 0,
 };

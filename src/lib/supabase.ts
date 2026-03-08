@@ -85,6 +85,16 @@ export interface MPASIRecipe {
   created_at: string;
 }
 
+export interface Video {
+  id: string;
+  youtube_id: string;
+  title: string;
+  description: string;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface UserProfile {
   id: string;
   email: string;
