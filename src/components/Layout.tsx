@@ -86,7 +86,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         )}
       </header>
 
-      <nav className="hidden sm:block bg-white border-b border-gray-200">
+      <nav className="hidden sm:block bg-white border-b border-gray-200 overflow-x-scroll">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex gap-1">
             {navigation.map((item) => (
