@@ -112,8 +112,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       </main>
 
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
-        <div className="flex justify-around">
-          {navigation.map((item) => (
+        <div className="grid grid-cols-5">
+          {navigation.filter((item) => item.id !== 'admin').map((item) => (
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
