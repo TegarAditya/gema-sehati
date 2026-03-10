@@ -1,28 +1,25 @@
-import { useEffect, useState } from 'react';
-import { supabase, MPASIRecipe } from '../lib/supabase';
+import { useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { useSupabaseQuery } from '../lib/swrHooks';
+import { SWR_KEYS } from '../lib/swrKeys';
 import { ChefHat, Clock, Users, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 export function MPASI() {
-  const [recipes, setRecipes] = useState<MPASIRecipe[]>([]);
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<'6-8' | '8-10' | '10-12'>('6-8');
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadRecipes();
-  }, [selectedAgeGroup]);
-
-  const loadRecipes = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('mpasi_recipes')
-      .select('*')
-      .eq('age_group', selectedAgeGroup)
-      .order('category', { ascending: true });
-
-    if (data) setRecipes(data);
-    setLoading(false);
-  };
+  // SWR query with age_group-specific key for proper caching
+  const { data: recipes = [], isLoading } = useSupabaseQuery(
+    [SWR_KEYS.MPASI_RECIPES, selectedAgeGroup],
+    async () => {
+      const { data } = await supabase
+        .from('mpasi_recipes')
+        .select('*')
+        .eq('age_group', selectedAgeGroup)
+        .order('category', { ascending: true });
+      return data || [];
+    }
+  );
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
@@ -66,7 +63,7 @@ export function MPASI() {
         ))}
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="text-center py-8">
           <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
         </div>
@@ -118,7 +115,7 @@ export function MPASI() {
                   <div>
                     <h5 className="font-semibold text-gray-900 mb-2">Bahan-bahan:</h5>
                     <ul className="space-y-1">
-                      {recipe.ingredients.split('\n').map((ingredient, idx) => (
+                      {recipe.ingredients.split('\n').map((ingredient: string, idx: number) => (
                         <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
                           <span className="text-blue-600">•</span>
                           <span>{ingredient}</span>
@@ -130,7 +127,7 @@ export function MPASI() {
                   <div>
                     <h5 className="font-semibold text-gray-900 mb-2">Cara Membuat:</h5>
                     <ol className="space-y-2">
-                      {recipe.instructions.split('\n').map((instruction, idx) => (
+                      {recipe.instructions.split('\n').map((instruction: string, idx: number) => (
                         <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
                           <span className="text-blue-600 font-medium min-w-fit">{idx + 1}.</span>
                           <span>{instruction}</span>

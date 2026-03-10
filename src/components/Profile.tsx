@@ -1,10 +1,28 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
+import React from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useSupabaseQuery, mutate } from '../lib/swrHooks';
+import { userScopedKeys } from '../lib/swrKeys';
 import { User } from 'lucide-react';
 
 export function Profile() {
   const { user } = useAuth();
+  
+  // SWR query for user profile
+  const { data: profileData } = useSupabaseQuery(
+    user ? userScopedKeys(user.id).USER_PROFILE : null,
+    async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .maybeSingle();
+      return data;
+    }
+  );
+
   const [profileName, setProfileName] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState('');
@@ -16,21 +34,14 @@ export function Profile() {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
-  const loadUserProfile = useCallback(async () => {
-    if (!user) return;
-
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('full_name')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    setProfileName(data?.full_name || user.user_metadata?.full_name || '');
-  }, [user]);
-
-  useEffect(() => {
-    loadUserProfile();
-  }, [loadUserProfile]);
+  // Initialize profile name from SWR data
+  React.useEffect(() => {
+    if (profileData?.full_name) {
+      setProfileName(profileData.full_name);
+    } else if (user?.user_metadata?.full_name) {
+      setProfileName(user.user_metadata.full_name);
+    }
+  }, [profileData, user]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +74,9 @@ export function Profile() {
       });
 
       if (authUpdateError) throw authUpdateError;
+
+      // Invalidate profile cache so fresh data is fetched on next SWR revalidation
+      await mutate(userScopedKeys(user.id).USER_PROFILE);
 
       setProfileSuccess('Informasi akun berhasil diperbarui');
     } catch (error) {

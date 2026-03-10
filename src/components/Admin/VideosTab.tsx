@@ -1,46 +1,78 @@
 import { FormEvent, useState } from 'react';
-import { Video } from '../../lib/supabase';
-import { VideoForm } from './types';
+import { supabase, Video } from '../../lib/supabase';
+import { useSupabaseQuery } from '../../lib/swrHooks';
+import { mutate } from 'swr';
+import { adminKeys, SWR_KEYS } from '../../lib/swrKeys';
+import { VideoForm, defaultVideoForm } from './types';
 import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react';
 
-interface VideosTabProps {
-  videos: Video[];
-  videoForm: VideoForm;
-  editingVideoId: string | null;
-  onSubmitVideo: (event: FormEvent) => void;
-  onEditVideo: (video: Video) => void;
-  onDeleteVideo: (videoId: string) => void;
-  onVideoFormChange: (form: VideoForm) => void;
-  onCancelEdit: () => void;
-  onReorderVideos: (reorderedVideos: Video[]) => void;
-}
-
-export function VideosTab({
-  videos,
-  videoForm,
-  editingVideoId,
-  onSubmitVideo,
-  onEditVideo,
-  onDeleteVideo,
-  onVideoFormChange,
-  onCancelEdit,
-  onReorderVideos,
-}: VideosTabProps) {
+export function VideosTab() {
+  const [videoForm, setVideoForm] = useState<VideoForm>(defaultVideoForm);
+  const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
   const [draggedVideo, setDraggedVideo] = useState<string | null>(null);
   const [dragOverVideo, setDragOverVideo] = useState<string | null>(null);
 
-  const handleDragStart = (videoId: string) => {
-    setDraggedVideo(videoId);
+  const { data: videos = [], isLoading } = useSupabaseQuery<Video[]>(
+    adminKeys.VIDEOS,
+    async () => {
+      const { data } = await supabase.from('videos').select('*').order('display_order', { ascending: true });
+      return data ?? [];
+    }
+  );
+
+  const invalidateVideos = () => Promise.all([mutate(adminKeys.VIDEOS), mutate(SWR_KEYS.VIDEOS)]);
+
+  const handleSubmitVideo = async (event: FormEvent) => {
+    event.preventDefault();
+    if (editingVideoId) {
+      const { error } = await supabase.from('videos').update(videoForm).eq('id', editingVideoId);
+      if (error) return;
+    } else {
+      const { error } = await supabase.from('videos').insert(videoForm);
+      if (error) return;
+    }
+    setVideoForm(defaultVideoForm);
+    setEditingVideoId(null);
+    await invalidateVideos();
   };
 
+  const handleEditVideo = (video: Video) => {
+    setEditingVideoId(video.id);
+    setVideoForm({
+      youtube_id: video.youtube_id,
+      title: video.title,
+      description: video.description,
+      display_order: video.display_order,
+    });
+  };
+
+  const handleDeleteVideo = async (videoId: string) => {
+    const confirmed = window.confirm('Delete this video?');
+    if (!confirmed) return;
+    const { error } = await supabase.from('videos').delete().eq('id', videoId);
+    if (!error) await invalidateVideos();
+  };
+
+  const handleReorderVideos = async (reorderedVideos: Video[]) => {
+    try {
+      await Promise.all(
+        reorderedVideos.map(video =>
+          supabase.from('videos').update({ display_order: video.display_order }).eq('id', video.id)
+        )
+      );
+      await invalidateVideos();
+    } catch (error) {
+      console.error('Error reordering videos:', error);
+    }
+  };
+
+  const handleDragStart = (videoId: string) => setDraggedVideo(videoId);
   const handleDragOver = (e: React.DragEvent, videoId: string) => {
     e.preventDefault();
     setDragOverVideo(videoId);
   };
-
-  const handleDragLeave = () => {
-    setDragOverVideo(null);
-  };
+  const handleDragLeave = () => setDragOverVideo(null);
+  const handleDragEnd = () => { setDraggedVideo(null); setDragOverVideo(null); };
 
   const handleDrop = (e: React.DragEvent, targetVideoId: string) => {
     e.preventDefault();
@@ -49,41 +81,33 @@ export function VideosTab({
       setDragOverVideo(null);
       return;
     }
-
     const draggedIndex = videos.findIndex(v => v.id === draggedVideo);
     const targetIndex = videos.findIndex(v => v.id === targetVideoId);
-
-    // Reorder videos array
     const newVideos = [...videos];
     const [movedVideo] = newVideos.splice(draggedIndex, 1);
     newVideos.splice(targetIndex, 0, movedVideo);
-
-    // Update display_order for all affected videos
-    const updatedVideos = newVideos.map((video, index) => ({
-      ...video,
-      display_order: index + 1,
-    }));
-
-    // Call handler to update database
-    onReorderVideos(updatedVideos);
-
+    const updatedVideos = newVideos.map((video, index) => ({ ...video, display_order: index + 1 }));
+    handleReorderVideos(updatedVideos);
     setDraggedVideo(null);
     setDragOverVideo(null);
   };
 
-  const handleDragEnd = () => {
-    setDraggedVideo(null);
-    setDragOverVideo(null);
-  };
+  if (isLoading) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl p-8 flex justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
   return (
     <div className="space-y-4">
-      <form onSubmit={onSubmitVideo} className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+      <form onSubmit={handleSubmitVideo} className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-gray-900">Manage Videos</h3>
           {editingVideoId && (
             <button
               type="button"
-              onClick={onCancelEdit}
+              onClick={() => { setEditingVideoId(null); setVideoForm(defaultVideoForm); }}
               className="text-sm text-gray-600 hover:text-gray-900"
             >
               Cancel Edit
@@ -95,7 +119,7 @@ export function VideosTab({
             type="text"
             placeholder="YouTube ID (e.g., dQw4w9WgXcQ)"
             value={videoForm.youtube_id}
-            onChange={(event) => onVideoFormChange({ ...videoForm, youtube_id: event.target.value })}
+            onChange={(event) => setVideoForm({ ...videoForm, youtube_id: event.target.value })}
             className="px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
@@ -103,7 +127,7 @@ export function VideosTab({
             type="number"
             placeholder="Display Order"
             value={videoForm.display_order}
-            onChange={(event) => onVideoFormChange({ ...videoForm, display_order: parseInt(event.target.value) || 0 })}
+            onChange={(event) => setVideoForm({ ...videoForm, display_order: parseInt(event.target.value) || 0 })}
             className="px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -111,14 +135,14 @@ export function VideosTab({
           type="text"
           placeholder="Judul Video"
           value={videoForm.title}
-          onChange={(event) => onVideoFormChange({ ...videoForm, title: event.target.value })}
+          onChange={(event) => setVideoForm({ ...videoForm, title: event.target.value })}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
           required
         />
         <textarea
           placeholder="Deskripsi Video"
           value={videoForm.description}
-          onChange={(event) => onVideoFormChange({ ...videoForm, description: event.target.value })}
+          onChange={(event) => setVideoForm({ ...videoForm, description: event.target.value })}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
           rows={3}
         />
@@ -172,13 +196,13 @@ export function VideosTab({
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => onEditVideo(video)}
+                      onClick={() => handleEditVideo(video)}
                       className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200"
                     >
                       <Pencil className="w-3 h-3" /> Edit
                     </button>
                     <button
-                      onClick={() => onDeleteVideo(video.id)}
+                      onClick={() => handleDeleteVideo(video.id)}
                       className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-red-100 text-red-700 hover:bg-red-200"
                     >
                       <Trash2 className="w-3 h-3" /> Hapus

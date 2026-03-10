@@ -1,4 +1,6 @@
-import { GrowthRecord, ImmunizationRecord, ReadingLog, Child } from '../../lib/supabase';
+import { supabase, GrowthRecord, ImmunizationRecord, ReadingLog, Child } from '../../lib/supabase';
+import { useSupabaseQuery } from '../../lib/swrHooks';
+import { adminKeys } from '../../lib/swrKeys';
 import { Download } from 'lucide-react';
 import {
   calculateAverageGrowth,
@@ -10,19 +12,35 @@ import {
   exportImmunizationData,
 } from './utils';
 
-interface AnalyticsTabProps {
-  growthRecords: GrowthRecord[];
-  immunizations: ImmunizationRecord[];
-  readingLogs: ReadingLog[];
-  children: Child[];
-}
-
-export function AnalyticsTab({
-  growthRecords,
-  immunizations,
-  readingLogs,
-  children,
-}: AnalyticsTabProps) {
+export function AnalyticsTab() {
+  const { data: growthRecords = [] } = useSupabaseQuery<GrowthRecord[]>(
+    adminKeys.GROWTH_RECORDS,
+    async () => {
+      const { data } = await supabase.from('growth_records').select('*').order('record_date', { ascending: false });
+      return data ?? [];
+    }
+  );
+  const { data: immunizations = [] } = useSupabaseQuery<ImmunizationRecord[]>(
+    adminKeys.IMMUNIZATION_RECORDS,
+    async () => {
+      const { data } = await supabase.from('immunization_records').select('*').order('scheduled_date', { ascending: false });
+      return data ?? [];
+    }
+  );
+  const { data: readingLogs = [] } = useSupabaseQuery<ReadingLog[]>(
+    adminKeys.READING_LOGS,
+    async () => {
+      const { data } = await supabase.from('reading_logs').select('*').order('reading_date', { ascending: false });
+      return data ?? [];
+    }
+  );
+  const { data: children = [] } = useSupabaseQuery<Child[]>(
+    'admin-children',
+    async () => {
+      const { data } = await supabase.from('children').select('*').order('created_at', { ascending: false });
+      return data ?? [];
+    }
+  );
   const averageGrowth = calculateAverageGrowth(growthRecords);
   const immunizationCompletionRate = calculateImmunizationCompletionRate(immunizations);
   const monthlyReading = calculateMonthlyReading(readingLogs);

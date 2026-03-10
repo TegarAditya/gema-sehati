@@ -1,41 +1,57 @@
-import { UserProfile, Child, GrowthRecord, ReadingLog, ImmunizationRecord } from '../../lib/supabase';
+import { useState } from 'react';
+import { supabase, UserProfile, Child, GrowthRecord, ReadingLog, ImmunizationRecord } from '../../lib/supabase';
+import { useSupabaseQuery } from '../../lib/swrHooks';
+import { adminKeys } from '../../lib/swrKeys';
 import { ArrowLeft, Calendar, BookOpen, Pill } from 'lucide-react';
 
-interface ChildrenTabProps {
-  children: Child[];
-  users: UserProfile[];
-  growthRecords: GrowthRecord[];
-  readingLogs: ReadingLog[];
-  immunizations: ImmunizationRecord[];
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  currentPage: number;
-  onPageChange: (page: number) => void;
-  itemsPerPage: number;
-  selectedChildId: string | null;
-  onSelectChild: (childId: string | null) => void;
-}
+const ITEMS_PER_PAGE = 10;
 
-export function ChildrenTab({
-  children,
-  users,
-  growthRecords,
-  readingLogs,
-  immunizations,
-  searchQuery,
-  onSearchChange,
-  currentPage,
-  onPageChange,
-  itemsPerPage,
-  selectedChildId,
-  onSelectChild,
-}: ChildrenTabProps) {
+export function ChildrenTab() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+
+  const { data: children = [], isLoading } = useSupabaseQuery<Child[]>(
+    'admin-children',
+    async () => {
+      const { data } = await supabase.from('children').select('*').order('created_at', { ascending: false });
+      return data ?? [];
+    }
+  );
+  const { data: users = [] } = useSupabaseQuery<UserProfile[]>(
+    'admin-users',
+    async () => {
+      const { data } = await supabase.from('user_profiles').select('*').order('created_at', { ascending: false });
+      return data ?? [];
+    }
+  );
+  const { data: growthRecords = [] } = useSupabaseQuery<GrowthRecord[]>(
+    adminKeys.GROWTH_RECORDS,
+    async () => {
+      const { data } = await supabase.from('growth_records').select('*').order('record_date', { ascending: false });
+      return data ?? [];
+    }
+  );
+  const { data: readingLogs = [] } = useSupabaseQuery<ReadingLog[]>(
+    adminKeys.READING_LOGS,
+    async () => {
+      const { data } = await supabase.from('reading_logs').select('*').order('reading_date', { ascending: false });
+      return data ?? [];
+    }
+  );
+  const { data: immunizations = [] } = useSupabaseQuery<ImmunizationRecord[]>(
+    adminKeys.IMMUNIZATION_RECORDS,
+    async () => {
+      const { data } = await supabase.from('immunization_records').select('*').order('scheduled_date', { ascending: false });
+      return data ?? [];
+    }
+  );
   const filteredChildren = children.filter((child) =>
     child.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filteredChildren.length / itemsPerPage);
-  const paginatedChildren = filteredChildren.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(filteredChildren.length / ITEMS_PER_PAGE);
+  const paginatedChildren = filteredChildren.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const selectedChild = selectedChildId ? children.find((c) => c.id === selectedChildId) : null;
   const selectedChildGrowth = selectedChildId ? growthRecords.filter((g) => g.child_id === selectedChildId) : [];
@@ -43,11 +59,19 @@ export function ChildrenTab({
   const selectedChildImmunization = selectedChildId ? immunizations.filter((i) => i.child_id === selectedChildId) : [];
   const selectedChildParent = selectedChild ? users.find((u) => u.id === selectedChild.user_id) : null;
 
+  if (isLoading) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl p-8 flex justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
+
   if (selectedChildId !== null && selectedChild) {
     return (
       <div className="space-y-4">
         <button
-          onClick={() => onSelectChild(null)}
+          onClick={() => setSelectedChildId(null)}
           className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -181,8 +205,8 @@ export function ChildrenTab({
           placeholder="Cari nama anak..."
           value={searchQuery}
           onChange={(e) => {
-            onSearchChange(e.target.value);
-            onPageChange(1);
+            setSearchQuery(e.target.value);
+            setCurrentPage(1);
           }}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
         />
@@ -216,7 +240,7 @@ export function ChildrenTab({
                     <td className="px-4 py-3 text-gray-600">{parent?.email || '-'}</td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => onSelectChild(child.id)}
+                        onClick={() => setSelectedChildId(child.id)}
                         className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 text-xs font-medium"
                       >
                         View Details
@@ -232,11 +256,11 @@ export function ChildrenTab({
       {totalPages > 1 && (
         <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
           <p className="text-sm text-gray-600">
-            Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredChildren.length)} dari {filteredChildren.length}
+            Menampilkan {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredChildren.length)} dari {filteredChildren.length}
           </p>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
+              onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
               disabled={currentPage === 1}
               className="px-3 py-1 border border-gray-300 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
             >
@@ -246,7 +270,7 @@ export function ChildrenTab({
               Halaman {currentPage} dari {totalPages}
             </span>
             <button
-              onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
+              onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
               disabled={currentPage === totalPages}
               className="px-3 py-1 border border-gray-300 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
             >

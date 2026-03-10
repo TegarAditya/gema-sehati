@@ -1,14 +1,38 @@
-import { UserProfile, Child, ReadingLog, ImmunizationRecord } from '../../lib/supabase';
+import { supabase, UserProfile, Child, ReadingLog, ImmunizationRecord } from '../../lib/supabase';
+import { useSupabaseQuery } from '../../lib/swrHooks';
+import { adminKeys } from '../../lib/swrKeys';
 import { calculateImmunizationCompletionRate } from './utils';
 
-interface OverviewProps {
-  users: UserProfile[];
-  children: Child[];
-  readingLogs: ReadingLog[];
-  immunizations: ImmunizationRecord[];
-}
+export function OverviewTab() {
+  const { data: users = [] } = useSupabaseQuery<UserProfile[]>(
+    'admin-users',
+    async () => {
+      const { data } = await supabase.from('user_profiles').select('*').order('created_at', { ascending: false });
+      return data ?? [];
+    }
+  );
+  const { data: children = [] } = useSupabaseQuery<Child[]>(
+    'admin-children',
+    async () => {
+      const { data } = await supabase.from('children').select('*').order('created_at', { ascending: false });
+      return data ?? [];
+    }
+  );
+  const { data: readingLogs = [] } = useSupabaseQuery<ReadingLog[]>(
+    adminKeys.READING_LOGS,
+    async () => {
+      const { data } = await supabase.from('reading_logs').select('*').order('reading_date', { ascending: false });
+      return data ?? [];
+    }
+  );
+  const { data: immunizations = [] } = useSupabaseQuery<ImmunizationRecord[]>(
+    adminKeys.IMMUNIZATION_RECORDS,
+    async () => {
+      const { data } = await supabase.from('immunization_records').select('*').order('scheduled_date', { ascending: false });
+      return data ?? [];
+    }
+  );
 
-export function OverviewTab({ users, children, readingLogs, immunizations }: OverviewProps) {
   const immunizationCompletionRate = calculateImmunizationCompletionRate(immunizations);
 
   return (

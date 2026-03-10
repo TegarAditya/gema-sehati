@@ -1,14 +1,3 @@
-import {
-  Child,
-  GrowthRecord,
-  ImmunizationRecord,
-  MPASIRecipe,
-  ReadingLog,
-  Story,
-  UserProfile,
-  Video,
-} from '../../lib/supabase';
-
 export type AdminTab = 'overview' | 'users' | 'children' | 'stories' | 'mpasi' | 'videos' | 'analytics';
 
 export type StoryForm = {
@@ -37,29 +26,6 @@ export type VideoForm = {
   description: string;
   display_order: number;
 };
-
-export interface AdminState {
-  loading: boolean;
-  selectedChildId: string | null;
-  usersSearchQuery: string;
-  usersCurrentPage: number;
-  childrenSearchQuery: string;
-  childrenCurrentPage: number;
-  users: UserProfile[];
-  children: Child[];
-  stories: Story[];
-  recipes: MPASIRecipe[];
-  videos: Video[];
-  growthRecords: GrowthRecord[];
-  readingLogs: ReadingLog[];
-  immunizations: ImmunizationRecord[];
-  storyForm: StoryForm;
-  editingStoryId: string | null;
-  recipeForm: RecipeForm;
-  editingRecipeId: string | null;
-  videoForm: VideoForm;
-  editingVideoId: string | null;
-}
 
 export const defaultStoryForm: StoryForm = {
   title: '',

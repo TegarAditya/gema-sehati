@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { mutate } from '../lib/swrHooks';
+import { userScopedKeys } from '../lib/swrKeys';
 
 interface AuthContextType {
   user: User | null;
@@ -21,6 +23,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const syncUserState = async (authUser: User | null) => {
+    // Clear user-scoped SWR caches when user changes
+    if (!authUser || authUser.id !== user?.id) {
+      // Invalidate all user-scoped SWR keys to prevent stale data across user switches
+      if (user?.id) {
+        const oldUserKeys = userScopedKeys(user.id);
+        Object.values(oldUserKeys).forEach((key) => {
+          if (key) mutate(key, undefined, false);
+        });
+      }
+    }
+
     if (!authUser) {
       setUser(null);
       setIsAdmin(false);
@@ -63,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [user?.id]);
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
