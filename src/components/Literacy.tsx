@@ -1,16 +1,53 @@
-import { useEffect, useState } from 'react';
-import { supabase, Child, ReadingLog, Story } from '../lib/supabase';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useSupabaseQuery, mutate } from '../lib/swrHooks';
+import { SWR_KEYS, userScopedKeys } from '../lib/swrKeys';
 import { Book, Plus, Clock, Calendar, BookOpen, Sparkles } from 'lucide-react';
 
 export function Literacy() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'logs' | 'stories'>('logs');
-  const [children, setChildren] = useState<Child[]>([]);
-  const [readingLogs, setReadingLogs] = useState<ReadingLog[]>([]);
-  const [stories, setStories] = useState<Story[]>([]);
-  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
+  const [selectedStory, setSelectedStory] = useState<any>(null);
   const [showAddLog, setShowAddLog] = useState(false);
+
+  // SWR queries
+  const { data: children = [] } = useSupabaseQuery(
+    user ? userScopedKeys(user.id).CHILDREN : null,
+    async () => {
+      if (!user) return [];
+      const { data } = await supabase
+        .from('children')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      return data || [];
+    }
+  );
+
+  const { data: readingLogs = [] } = useSupabaseQuery(
+    user ? userScopedKeys(user.id).READING_LOGS : null,
+    async () => {
+      if (!user) return [];
+      const { data } = await supabase
+        .from('reading_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('reading_date', { ascending: false });
+      return data || [];
+    }
+  );
+
+  const { data: stories = [] } = useSupabaseQuery(
+    SWR_KEYS.STORIES,
+    async () => {
+      const { data } = await supabase
+        .from('stories')
+        .select('*')
+        .order('created_at', { ascending: false });
+      return data || [];
+    }
+  );
 
   const [newLog, setNewLog] = useState({
     child_id: '',
@@ -20,41 +57,12 @@ export function Literacy() {
     notes: '',
   });
 
+  // Initialize child_id when children change
   useEffect(() => {
-    loadData();
-  }, [user]);
-
-  const loadData = async () => {
-    if (!user) return;
-
-    const { data: childrenData } = await supabase
-      .from('children')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (childrenData) {
-      setChildren(childrenData);
-      if (childrenData.length > 0 && !newLog.child_id) {
-        setNewLog({ ...newLog, child_id: childrenData[0].id });
-      }
+    if (children.length > 0 && !newLog.child_id) {
+      setNewLog((prev) => ({ ...prev, child_id: children[0].id }));
     }
-
-    const { data: logsData } = await supabase
-      .from('reading_logs')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('reading_date', { ascending: false });
-
-    if (logsData) setReadingLogs(logsData);
-
-    const { data: storiesData } = await supabase
-      .from('stories')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (storiesData) setStories(storiesData);
-  };
+  }, [children]);
 
   const handleAddLog = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,7 +84,8 @@ export function Literacy() {
         notes: '',
       });
       setShowAddLog(false);
-      loadData();
+      // Invalidate reading logs cache to fetch fresh data
+      await mutate(userScopedKeys(user.id).READING_LOGS);
     }
   };
 

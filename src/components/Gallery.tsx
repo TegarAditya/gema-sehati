@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { supabase, Child, ActivityPhoto } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useSupabaseQuery, mutate } from '../lib/swrHooks';
+import { userScopedKeys } from '../lib/swrKeys';
 import { Image as ImageIcon, Plus, Calendar, X, Trash2, User, Grid3x3, Grid2x2, LayoutGrid } from 'lucide-react';
 import {
   buildActivityPhotoStoragePath,
@@ -15,10 +17,8 @@ import { transformPhotoForUpload } from '../lib/imageTransform';
 
 export function Gallery() {
   const { user } = useAuth();
-  const [children, setChildren] = useState<Child[]>([]);
-  const [photos, setPhotos] = useState<ActivityPhoto[]>([]);
   const [showAddPhoto, setShowAddPhoto] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<ActivityPhoto | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isSubmittingPhoto, setIsSubmittingPhoto] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -35,16 +35,50 @@ export function Gallery() {
     return 'standard';
   });
 
+  // SWR queries
+  const { data: children = [] } = useSupabaseQuery(
+    user ? userScopedKeys(user.id).CHILDREN : null,
+    async () => {
+      if (!user) return [];
+      const { data } = await supabase
+        .from('children')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      return data || [];
+    }
+  );
+
+  const { data: photosData = [] } = useSupabaseQuery(
+    user ? userScopedKeys(user.id).ACTIVITY_PHOTOS : null,
+    async () => {
+      if (!user) return [];
+      const { data } = await supabase
+        .from('activity_photos')
+        .select('*')
+        .order('activity_date', { ascending: false });
+      return data || [];
+    }
+  );
+
+  // Normalize photos to ensure photo_url is set
+  const photos = photosData.map((photo: any) => {
+    if (photo.photo_url) return photo;
+    if (photo.storage_path) {
+      return {
+        ...photo,
+        photo_url: getPublicPhotoUrl(photo.storage_path),
+      };
+    }
+    return photo;
+  });
+
   const [newPhoto, setNewPhoto] = useState({
     child_id: '',
     file: null as File | null,
     caption: '',
     activity_date: new Date().toISOString().split('T')[0],
   });
-
-  useEffect(() => {
-    void loadData();
-  }, [user]);
 
   useEffect(() => {
     localStorage.setItem('galleryViewMode', viewMode);
@@ -58,9 +92,19 @@ export function Gallery() {
     };
   }, [previewUrl]);
 
+  // Initialize newPhoto when children load
+  useEffect(() => {
+    if (children.length > 0 && !newPhoto.child_id) {
+      setNewPhoto((prev) => ({
+        ...prev,
+        child_id: children[0].id,
+      }));
+    }
+  }, [children]);
+
   useEffect(() => {
     const fetchAllUserProfiles = async () => {
-      const uniqueUserIds = [...new Set(photos.map((p) => p.user_id))];
+      const uniqueUserIds = [...new Set(photos.map((p: any) => p.user_id))];
       for (const userId of uniqueUserIds) {
         if (!userProfiles[userId]) {
           await fetchUserProfile(userId);
@@ -102,50 +146,6 @@ export function Gallery() {
       child_id: prev.child_id || children[0]?.id || '',
     }));
     setShowAddPhoto(true);
-  };
-
-  const loadData = async () => {
-    if (!user) return;
-
-    setActionError('');
-
-    const { data: childrenData } = await supabase
-      .from('children')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (childrenData) {
-      setChildren(childrenData);
-      if (childrenData.length > 0) {
-        setNewPhoto((prev) => {
-          if (prev.child_id) return prev;
-          return { ...prev, child_id: childrenData[0].id };
-        });
-      }
-    }
-
-    const { data: photosData } = await supabase
-      .from('activity_photos')
-      .select('*')
-      .order('activity_date', { ascending: false });
-
-    if (photosData) {
-      const normalizedPhotos = photosData.map((photo) => {
-        if (photo.photo_url) return photo;
-
-        if (photo.storage_path) {
-          return {
-            ...photo,
-            photo_url: getPublicPhotoUrl(photo.storage_path),
-          };
-        }
-
-        return photo;
-      });
-
-      setPhotos(normalizedPhotos);
-    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -244,7 +244,8 @@ export function Gallery() {
       setActionSuccess('Foto berhasil diunggah dan dioptimalkan.');
       resetAddPhotoState();
       setShowAddPhoto(false);
-      await loadData();
+      // Invalidate activity photos cache
+      await mutate(userScopedKeys(user.id).ACTIVITY_PHOTOS);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Terjadi kesalahan saat mengunggah foto.';
 
@@ -296,7 +297,7 @@ export function Gallery() {
   };
 
   const handleDeletePhoto = async () => {
-    if (!selectedPhoto || !isPhotoOwner(selectedPhoto.user_id)) {
+    if (!selectedPhoto || !user || !isPhotoOwner(selectedPhoto.user_id)) {
       setActionError('Anda hanya dapat menghapus foto Anda sendiri.');
       return;
     }
@@ -321,7 +322,8 @@ export function Gallery() {
       setSelectedPhoto(null);
       setShowDeleteConfirm(false);
       setActionSuccess('Foto berhasil dihapus.');
-      await loadData();
+      // Invalidate activity photos cache
+      await mutate(userScopedKeys(user.id).ACTIVITY_PHOTOS);
       return;
     }
 

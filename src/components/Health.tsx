@@ -1,18 +1,69 @@
-import { useEffect, useState } from 'react';
-import { supabase, Child, GrowthRecord, ImmunizationRecord, Video } from '../lib/supabase';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useSupabaseQuery, mutate } from '../lib/swrHooks';
+import { SWR_KEYS, userScopedKeys } from '../lib/swrKeys';
 import { Heart, TrendingUp, Calendar, Syringe, Plus, CheckCircle, AlertCircle, ChefHat, Film } from 'lucide-react';
 import { MPASI } from './MPASI';
 
 export function Health() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'growth' | 'immunization' | 'mpasi' | 'videos'>('growth');
-  const [children, setChildren] = useState<Child[]>([]);
-  const [growthRecords, setGrowthRecords] = useState<GrowthRecord[]>([]);
-  const [immunizationRecords, setImmunizationRecords] = useState<ImmunizationRecord[]>([]);
-  const [videos, setVideos] = useState<Video[]>([]);
   const [showAddGrowth, setShowAddGrowth] = useState(false);
   const [showAddVaccine, setShowAddVaccine] = useState(false);
+
+  // SWR queries
+  const { data: children = [] } = useSupabaseQuery(
+    user ? userScopedKeys(user.id).CHILDREN : null,
+    async () => {
+      if (!user) return [];
+      const { data } = await supabase
+        .from('children')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      return data || [];
+    }
+  );
+
+  const { data: growthRecords = [] } = useSupabaseQuery(
+    children.length > 0 && user ? userScopedKeys(user.id).GROWTH_RECORDS : null,
+    async () => {
+      if (children.length === 0 || !user) return [];
+      const childIds = children.map((c: any) => c.id);
+      const { data } = await supabase
+        .from('growth_records')
+        .select('*')
+        .in('child_id', childIds)
+        .order('record_date', { ascending: false });
+      return data || [];
+    }
+  );
+
+  const { data: immunizationRecords = [] } = useSupabaseQuery(
+    children.length > 0 && user ? userScopedKeys(user.id).IMMUNIZATION_RECORDS : null,
+    async () => {
+      if (children.length === 0 || !user) return [];
+      const childIds = children.map((c: any) => c.id);
+      const { data } = await supabase
+        .from('immunization_records')
+        .select('*')
+        .in('child_id', childIds)
+        .order('scheduled_date', { ascending: true });
+      return data || [];
+    }
+  );
+
+  const { data: videos = [] } = useSupabaseQuery(
+    SWR_KEYS.VIDEOS,
+    async () => {
+      const { data } = await supabase
+        .from('videos')
+        .select('*')
+        .order('display_order', { ascending: true });
+      return data || [];
+    }
+  );
 
   const [newGrowth, setNewGrowth] = useState({
     child_id: '',
@@ -27,53 +78,17 @@ export function Health() {
     scheduled_date: new Date().toISOString().split('T')[0],
   });
 
+  // Initialize child_id when children change
   useEffect(() => {
-    loadData();
-  }, [user]);
-
-  const loadData = async () => {
-    if (!user) return;
-
-    const { data: childrenData } = await supabase
-      .from('children')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (childrenData) {
-      setChildren(childrenData);
-      if (childrenData.length > 0) {
-        if (!newGrowth.child_id) setNewGrowth({ ...newGrowth, child_id: childrenData[0].id });
-        if (!newVaccine.child_id) setNewVaccine({ ...newVaccine, child_id: childrenData[0].id });
-
-        const childIds = childrenData.map(c => c.id);
-
-        const { data: growthData } = await supabase
-          .from('growth_records')
-          .select('*')
-          .in('child_id', childIds)
-          .order('record_date', { ascending: false });
-
-        if (growthData) setGrowthRecords(growthData);
-
-        const { data: vaccineData } = await supabase
-          .from('immunization_records')
-          .select('*')
-          .in('child_id', childIds)
-          .order('scheduled_date', { ascending: true });
-
-        if (vaccineData) setImmunizationRecords(vaccineData);
+    if (children.length > 0) {
+      if (!newGrowth.child_id) {
+        setNewGrowth((prev) => ({ ...prev, child_id: children[0].id }));
+      }
+      if (!newVaccine.child_id) {
+        setNewVaccine((prev) => ({ ...prev, child_id: children[0].id }));
       }
     }
-
-    // Fetch videos from database
-    const { data: videosData } = await supabase
-      .from('videos')
-      .select('*')
-      .order('display_order', { ascending: true });
-
-    if (videosData) setVideos(videosData);
-  };
+  }, [children]);
 
   const calculateBMI = (heightCm: number, weightKg: number, ageMonths: number): string => {
     const heightM = heightCm / 100;
@@ -96,9 +111,9 @@ export function Health() {
 
   const handleAddGrowth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newGrowth.child_id || !newGrowth.height_cm || !newGrowth.weight_kg) return;
+    if (!newGrowth.child_id || !newGrowth.height_cm || !newGrowth.weight_kg || !user) return;
 
-    const child = children.find(c => c.id === newGrowth.child_id);
+    const child = children.find((c: any) => c.id === newGrowth.child_id);
     if (!child) return;
 
     const birthDate = new Date(child.birth_date);
@@ -130,13 +145,14 @@ export function Health() {
         weight_kg: '',
       });
       setShowAddGrowth(false);
-      loadData();
+      // Invalidate growth records cache
+      await mutate(userScopedKeys(user.id).GROWTH_RECORDS);
     }
   };
 
   const handleAddVaccine = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newVaccine.child_id || !newVaccine.vaccine_name) return;
+    if (!newVaccine.child_id || !newVaccine.vaccine_name || !user) return;
 
     const { error } = await supabase
       .from('immunization_records')
@@ -154,11 +170,13 @@ export function Health() {
         scheduled_date: new Date().toISOString().split('T')[0],
       });
       setShowAddVaccine(false);
-      loadData();
+      // Invalidate immunization records cache
+      await mutate(userScopedKeys(user.id).IMMUNIZATION_RECORDS);
     }
   };
 
-  const toggleVaccineComplete = async (vaccine: ImmunizationRecord) => {
+  const toggleVaccineComplete = async (vaccine: any) => {
+    if (!user) return;
     const { error } = await supabase
       .from('immunization_records')
       .update({
@@ -167,11 +185,15 @@ export function Health() {
       })
       .eq('id', vaccine.id);
 
-    if (!error) loadData();
+    if (!error) {
+      // Invalidate immunization records cache
+      await mutate(userScopedKeys(user.id).IMMUNIZATION_RECORDS);
+    }
   };
 
   const getChildName = (childId: string) => {
-    return children.find(c => c.id === childId)?.name || 'Anak';
+    const child = children.find((c: any) => c.id === childId);
+    return child?.name || 'Anak';
   };
 
   const getStatusColor = (status: string) => {

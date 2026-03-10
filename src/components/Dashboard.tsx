@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
-import { supabase, Child, ReadingLog, ImmunizationRecord } from '../lib/supabase';
+import { useState } from 'react';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useSupabaseQuery, mutate } from '../lib/swrHooks';
+import { userScopedKeys } from '../lib/swrKeys';
 import { Book, Calendar, Baby, Plus, Edit2, Trash2 } from 'lucide-react';
 
 export function Dashboard() {
   const { user } = useAuth();
-  const [children, setChildren] = useState<Child[]>([]);
-  const [recentReading, setRecentReading] = useState<ReadingLog[]>([]);
-  const [upcomingVaccines, setUpcomingVaccines] = useState<ImmunizationRecord[]>([]);
   const [showAddChild, setShowAddChild] = useState(false);
   const [newChildName, setNewChildName] = useState('');
   const [newChildBirthDate, setNewChildBirthDate] = useState('');
@@ -17,48 +16,54 @@ export function Dashboard() {
   const [editChildBirthDate, setEditChildBirthDate] = useState('');
   const [editChildGender, setEditChildGender] = useState<'male' | 'female'>('male');
 
-  const loadDashboardData = useCallback(async () => {
-    if (!user) return;
+  // SWR query for children
+  const { data: children = [] } = useSupabaseQuery(
+    user ? userScopedKeys(user.id).CHILDREN : null,
+    async () => {
+      if (!user) return [];
+      const { data } = await supabase
+        .from('children')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      return data || [];
+    }
+  );
 
-    const { data: childrenData } = await supabase
-      .from('children')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (childrenData) {
-      setChildren(childrenData);
-
-      const { data: readingData } = await supabase
+  // SWR query for recent reading logs
+  const { data: recentReading = [] } = useSupabaseQuery(
+    user ? userScopedKeys(user.id).READING_LOGS : null,
+    async () => {
+      if (!user) return [];
+      const { data } = await supabase
         .from('reading_logs')
         .select('*')
         .eq('user_id', user.id)
         .order('reading_date', { ascending: false })
         .limit(3);
-
-      if (readingData) setRecentReading(readingData);
-
-      if (childrenData.length > 0) {
-        const childIds = childrenData.map(c => c.id);
-        const today = new Date().toISOString().split('T')[0];
-
-        const { data: vaccineData } = await supabase
-          .from('immunization_records')
-          .select('*')
-          .in('child_id', childIds)
-          .eq('completed', false)
-          .gte('scheduled_date', today)
-          .order('scheduled_date', { ascending: true })
-          .limit(3);
-
-        if (vaccineData) setUpcomingVaccines(vaccineData);
-      }
+      return data || [];
     }
-  }, [user]);
+  );
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
+  // SWR query for upcoming vaccines - conditional on children data
+  const { data: upcomingVaccines = [] } = useSupabaseQuery(
+    children.length > 0 && user ? userScopedKeys(user.id).IMMUNIZATION_RECORDS : null,
+    async () => {
+      if (children.length === 0 || !user) return [];
+      const childIds = children.map((c: any) => c.id);
+      const today = new Date().toISOString().split('T')[0];
+
+      const { data } = await supabase
+        .from('immunization_records')
+        .select('*')
+        .in('child_id', childIds)
+        .eq('completed', false)
+        .gte('scheduled_date', today)
+        .order('scheduled_date', { ascending: true })
+        .limit(3);
+      return data || [];
+    }
+  );
 
   const handleAddChild = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,11 +83,15 @@ export function Dashboard() {
       setNewChildBirthDate('');
       setNewChildGender('male');
       setShowAddChild(false);
-      loadDashboardData();
+      // Invalidate children cache and dependent vaccine cache
+      await Promise.all([
+        mutate(userScopedKeys(user.id).CHILDREN),
+        mutate(userScopedKeys(user.id).IMMUNIZATION_RECORDS),
+      ]);
     }
   };
 
-  const handleEditChild = (child: Child) => {
+  const handleEditChild = (child: any) => {
     setEditingChildId(child.id);
     setEditChildName(child.name);
     setEditChildBirthDate(child.birth_date);
@@ -91,7 +100,7 @@ export function Dashboard() {
 
   const handleUpdateChild = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingChildId || !editChildName.trim() || !editChildBirthDate) return;
+    if (!user || !editingChildId || !editChildName.trim() || !editChildBirthDate) return;
 
     const { error } = await supabase
       .from('children')
@@ -107,19 +116,24 @@ export function Dashboard() {
       setEditChildName('');
       setEditChildBirthDate('');
       setEditChildGender('male');
-      loadDashboardData();
+      // Invalidate children cache
+      await mutate(userScopedKeys(user.id).CHILDREN);
     }
   };
 
   const handleDeleteChild = async (childId: string) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus data anak ini?')) {
+    if (user && window.confirm('Apakah Anda yakin ingin menghapus data anak ini?')) {
       const { error } = await supabase
         .from('children')
         .delete()
         .eq('id', childId);
 
       if (!error) {
-        loadDashboardData();
+        // Invalidate children cache and dependent vaccine cache
+        await Promise.all([
+          mutate(userScopedKeys(user.id).CHILDREN),
+          mutate(userScopedKeys(user.id).IMMUNIZATION_RECORDS),
+        ]);
       }
     }
   };
@@ -132,7 +146,8 @@ export function Dashboard() {
   };
 
   const getChildName = (childId: string) => {
-    return children.find(c => c.id === childId)?.name || 'Anak';
+    const child = children.find((c: any) => c.id === childId);
+    return child?.name || 'Anak';
   };
 
   return (
