@@ -27,10 +27,8 @@ export const userScopedKeys = (userId: string | undefined) => ({
 
 // Admin-specific keys (typically admin-only, but include pagination/search)
 export const adminKeys = {
-  USERS: (page?: number, search?: string) =>
-    ['admin-users', page ?? 1, search ?? ''].filter(Boolean),
-  CHILDREN: (page?: number, search?: string) =>
-    ['admin-children', page ?? 1, search ?? ''].filter(Boolean),
+  USERS: 'admin-users',
+  CHILDREN: 'admin-children',
   STORIES: 'admin-stories',
   MPASI_RECIPES: 'admin-mpasi-recipes',
   VIDEOS: 'admin-videos',
@@ -125,6 +123,9 @@ export const mutationInvalidations = (userId: string | undefined) => ({
   'videos.update': [SWR_KEYS.VIDEOS, adminKeys.VIDEOS],
   'videos.delete': [SWR_KEYS.VIDEOS, adminKeys.VIDEOS],
   'videos.reorder': [SWR_KEYS.VIDEOS, adminKeys.VIDEOS],
+
+  // Admin user mutations (toggle active, etc.)
+  'admin-users.update': ['admin-users'],
 
   // User profile mutations
   'user-profile.update': userId ? [['user-profile', userId]] : [],

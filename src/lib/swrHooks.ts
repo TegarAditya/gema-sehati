@@ -64,7 +64,8 @@ export function useSupabaseQuery<T = unknown>(
   return {
     data,
     error,
-    isLoading: isLoading || (!data && !error),
+    // key=null means "don't fetch" — never report loading in that case
+    isLoading: key !== null && (isLoading || (!data && !error)),
     isValidating,
     mutate: mutateSWR,
   };
