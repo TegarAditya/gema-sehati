@@ -1,28 +1,31 @@
-import { UserProfile, Child } from '../../lib/supabase';
+import { useState } from 'react';
+import { supabase, UserProfile, Child } from '../../lib/supabase';
+import { useSupabaseQuery } from '../../lib/swrHooks';
+import { mutate } from 'swr';
 import { Ban, CheckCircle } from 'lucide-react';
 import { calculateChildrenByUser } from './utils';
 
-interface UsersTabProps {
-  users: UserProfile[];
-  children: Child[];
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  currentPage: number;
-  onPageChange: (page: number) => void;
-  itemsPerPage: number;
-  onToggleUserActive: (profile: UserProfile) => void;
-}
+const ITEMS_PER_PAGE = 10;
 
-export function UsersTab({
-  users,
-  children,
-  searchQuery,
-  onSearchChange,
-  currentPage,
-  onPageChange,
-  itemsPerPage,
-  onToggleUserActive,
-}: UsersTabProps) {
+export function UsersTab() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const { data: users = [], isLoading: usersLoading } = useSupabaseQuery<UserProfile[]>(
+    'admin-users',
+    async () => {
+      const { data } = await supabase.from('user_profiles').select('*').order('created_at', { ascending: false });
+      return data ?? [];
+    }
+  );
+  const { data: children = [] } = useSupabaseQuery<Child[]>(
+    'admin-children',
+    async () => {
+      const { data } = await supabase.from('children').select('*').order('created_at', { ascending: false });
+      return data ?? [];
+    }
+  );
+
   const childrenByUser = calculateChildrenByUser(children);
 
   const filteredUsers = users.filter((user) =>
@@ -30,8 +33,31 @@ export function UsersTab({
     user.full_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-  const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  const handleToggleUserActive = async (profile: UserProfile) => {
+    const action = profile.is_active ? 'suspend' : 'activate';
+    const confirmed = window.confirm(`Are you sure you want to ${action} ${profile.email}?`);
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({ is_active: !profile.is_active })
+      .eq('id', profile.id);
+
+    if (!error) {
+      await mutate('admin-users');
+    }
+  };
+
+  if (usersLoading) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl p-8 flex justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -42,8 +68,8 @@ export function UsersTab({
           placeholder="Cari email atau nama..."
           value={searchQuery}
           onChange={(e) => {
-            onSearchChange(e.target.value);
-            onPageChange(1);
+            setSearchQuery(e.target.value);
+            setCurrentPage(1);
           }}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
         />
@@ -81,7 +107,7 @@ export function UsersTab({
                   </td>
                   <td className="px-4 py-3">
                     <button
-                      onClick={() => onToggleUserActive(profile)}
+                      onClick={() => handleToggleUserActive(profile)}
                       className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium transition ${
                         profile.is_active
                           ? 'bg-red-100 text-red-700 hover:bg-red-200'
@@ -101,11 +127,11 @@ export function UsersTab({
       {totalPages > 1 && (
         <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
           <p className="text-sm text-gray-600">
-            Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredUsers.length)} dari {filteredUsers.length}
+            Menampilkan {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredUsers.length)} dari {filteredUsers.length}
           </p>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
+              onClick={() => setCurrentPage(Math.max(currentPage - 1, 1))}
               disabled={currentPage === 1}
               className="px-3 py-1 border border-gray-300 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
             >
@@ -115,7 +141,7 @@ export function UsersTab({
               Halaman {currentPage} dari {totalPages}
             </span>
             <button
-              onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
+              onClick={() => setCurrentPage(Math.min(currentPage + 1, totalPages))}
               disabled={currentPage === totalPages}
               className="px-3 py-1 border border-gray-300 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
             >
