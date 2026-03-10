@@ -1,12 +1,33 @@
 # 🌟 Gema Sehati - Family Health & Literacy App
 
-**Gema Sehati** is a comprehensive family-focused web application designed to help parents track and manage their children's health, growth, literacy activities, and precious family moments. Built with modern web technologies, it provides an intuitive interface for monitoring child development and promoting healthy family habits.
+**Gema Sehati** is a family-focused web app for tracking child growth, health, literacy habits, and family moments in one place.
 
 ![React](https://img.shields.io/badge/React-18.3.1-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.5.3-blue)
 ![Vite](https://img.shields.io/badge/Vite-5.4.2-purple)
 ![Supabase](https://img.shields.io/badge/Supabase-2.57.4-green)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4.1-cyan)
+
+## ⚡ Quick Start
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Create `.env` in the project root:
+   ```env
+   VITE_SUPABASE_URL=your_supabase_project_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+   ```
+3. Run SQL migrations in `supabase/migrations/` (in order) in the Supabase SQL Editor.
+4. Create a public storage bucket named `activity-photos` in Supabase Storage.
+5. Start the app:
+   ```bash
+   npm run dev
+   ```
+
+App URL: `http://localhost:5173`
 
 ## ✨ Features
 
@@ -38,7 +59,7 @@
 - Filter photos by child
 - Safe cloud storage with Supabase
 
-### � Profile Management
+### 👤 Profile Management
 - **User Profile**: Update full name and personal information
 - **Password Management**: Change password securely
 - Profile synchronization across authentication and database
@@ -47,9 +68,10 @@
 - **Overview Tab**: Real-time statistics (total users, children, reading logs, immunization rates)
 - **User Management**: View all users, search functionality, activate/suspend user accounts
 - **Children Management**: View all children across the platform with search and filtering
-- **Content Management**: 
-  - Create, edit, and delete stories in the story library
-  - Manage MPASI recipes (add, update, remove)
+- **Content Management**:
+   - Create, edit, and delete stories in the story library
+   - Manage MPASI recipes (add, update, remove)
+   - Manage educational videos (add, update, remove)
 - **Analytics Dashboard**:
   - Growth statistics (average height/weight across all children)
   - Immunization coverage with visual progress indicators
@@ -95,7 +117,7 @@ Before you begin, ensure you have the following installed:
 - **npm** or **yarn** or **pnpm**
 - **Supabase Account** - [Sign up for free](https://supabase.com)
 
-## 🚀 Installation
+## 🚀 Setup
 
 1. **Clone the repository**
    ```bash
@@ -114,6 +136,7 @@ Before you begin, ensure you have the following installed:
    ```env
    VITE_SUPABASE_URL=your_supabase_project_url
    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
    ```
 
 4. **Set up Supabase**
@@ -130,6 +153,7 @@ Before you begin, ensure you have the following installed:
    - `20260303090000_add_admin_dashboard_access.sql` - Admin system with user profiles
    - `20260304103000_allow_user_update_own_profile.sql` - User profile self-service
    - `20260306110000_add_activity_photo_public_storage.sql` - Public storage bucket for photos
+   - `20260308000000_add_videos_table.sql` - Educational videos content management
 
 6. **Enable Storage Bucket** (for photo uploads)
    
@@ -160,7 +184,7 @@ Start the development server:
 npm run dev
 ```
 
-The application will be available at `http://localhost:5173`
+The app is available at `http://localhost:5173`.
 
 ### Other Commands
 
@@ -184,7 +208,7 @@ npm run seed:content
 npm run seed:content:reset
 ```
 
-> Note: the seeder reads `.env` file and requires `SUPABASE_SERVICE_ROLE_KEY` to be set. Add it to your `.env`:
+> Note: the seeder uses `.env` and requires `SUPABASE_SERVICE_ROLE_KEY`.
 > ```env
 > VITE_SUPABASE_URL=your_supabase_project_url
 > SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
@@ -211,6 +235,7 @@ gema-sehati/
 │   │       ├── ChildrenTab.tsx    # Children management
 │   │       ├── StoriesTab.tsx     # Story content management
 │   │       ├── MPASITab.tsx       # Recipe management
+│   │       ├── VideosTab.tsx      # Video content management
 │   │       ├── AnalyticsTab.tsx   # Analytics & CSV export
 │   │       ├── types.ts           # TypeScript definitions
 │   │       └── utils.ts           # Helper functions
@@ -247,13 +272,14 @@ The application uses the following main tables:
 - **stories** - Collection of children's stories (admin-managed)
 - **activity_photos** - Family activity photo gallery with cloud storage paths
 - **mpasi_recipes** - Baby food recipes with ingredients, instructions, and nutrition info (admin-managed)
+- **videos** - Educational health and nutrition video links and metadata (admin-managed)
 
 **Storage Buckets:**
 - **activity-photos** - Public bucket for family photos with user-scoped RLS policies
 
 All tables implement Row-Level Security (RLS) to ensure data privacy. Admin access is controlled via JWT metadata (`is_admin` flag).
 
-## 🎯 Usage
+## 🎯 Typical User Flow
 
 1. **Sign Up/Login**
    - Create an account using your email
@@ -292,6 +318,7 @@ All tables implement Row-Level Security (RLS) to ensure data privacy. Admin acce
    - Manage user accounts (activate/suspend)
    - Create and manage story library content
    - Add and edit MPASI recipes
+   - Add and edit educational videos
    - Export data to CSV for analysis
 
 <!-- ## 🤝 Contributing
