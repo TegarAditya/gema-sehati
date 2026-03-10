@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, Child, ImmunizationRecord } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSupabaseQuery, mutate } from '../lib/swrHooks';
 import { SWR_KEYS, userScopedKeys } from '../lib/swrKeys';
@@ -30,7 +30,7 @@ export function Health() {
     children.length > 0 && user ? userScopedKeys(user.id).GROWTH_RECORDS : null,
     async () => {
       if (children.length === 0 || !user) return [];
-      const childIds = children.map((c: any) => c.id);
+      const childIds = children.map((c: Child) => c.id);
       const { data } = await supabase
         .from('growth_records')
         .select('*')
@@ -44,7 +44,7 @@ export function Health() {
     children.length > 0 && user ? userScopedKeys(user.id).IMMUNIZATION_RECORDS : null,
     async () => {
       if (children.length === 0 || !user) return [];
-      const childIds = children.map((c: any) => c.id);
+      const childIds = children.map((c: Child) => c.id);
       const { data } = await supabase
         .from('immunization_records')
         .select('*')
@@ -113,7 +113,7 @@ export function Health() {
     e.preventDefault();
     if (!newGrowth.child_id || !newGrowth.height_cm || !newGrowth.weight_kg || !user) return;
 
-    const child = children.find((c: any) => c.id === newGrowth.child_id);
+    const child = children.find((c: Child) => c.id === newGrowth.child_id);
     if (!child) return;
 
     const birthDate = new Date(child.birth_date);
@@ -175,7 +175,7 @@ export function Health() {
     }
   };
 
-  const toggleVaccineComplete = async (vaccine: any) => {
+  const toggleVaccineComplete = async (vaccine: ImmunizationRecord) => {
     if (!user) return;
     const { error } = await supabase
       .from('immunization_records')
@@ -192,7 +192,7 @@ export function Health() {
   };
 
   const getChildName = (childId: string) => {
-    const child = children.find((c: any) => c.id === childId);
+    const child = children.find((c: Child) => c.id === childId);
     return child?.name || 'Anak';
   };
 

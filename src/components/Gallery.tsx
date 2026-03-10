@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, ActivityPhoto, UserProfile } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSupabaseQuery, mutate } from '../lib/swrHooks';
 import { userScopedKeys } from '../lib/swrKeys';
@@ -18,7 +18,7 @@ import { transformPhotoForUpload } from '../lib/imageTransform';
 export function Gallery() {
   const { user } = useAuth();
   const [showAddPhoto, setShowAddPhoto] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<any>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<ActivityPhoto | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isSubmittingPhoto, setIsSubmittingPhoto] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -26,7 +26,7 @@ export function Gallery() {
   const [selectedFileName, setSelectedFileName] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [openPersonIconId, setOpenPersonIconId] = useState<string | null>(null);
-  const [userProfiles, setUserProfiles] = useState<{ [key: string]: any }>({});
+  const [userProfiles, setUserProfiles] = useState<Record<string, Pick<UserProfile, 'full_name' | 'email'>>>({});
   const [viewMode, setViewMode] = useState<'compact' | 'standard' | 'spacious'>(() => {
     const saved = localStorage.getItem('galleryViewMode');
     if (saved && ['compact', 'standard', 'spacious'].includes(saved)) {
@@ -62,7 +62,7 @@ export function Gallery() {
   );
 
   // Normalize photos to ensure photo_url is set
-  const photos = photosData.map((photo: any) => {
+  const photos = photosData.map((photo: ActivityPhoto) => {
     if (photo.photo_url) return photo;
     if (photo.storage_path) {
       return {
@@ -104,7 +104,7 @@ export function Gallery() {
 
   useEffect(() => {
     const fetchAllUserProfiles = async () => {
-      const uniqueUserIds = [...new Set(photos.map((p: any) => p.user_id))];
+      const uniqueUserIds = [...new Set(photos.map((p: ActivityPhoto) => p.user_id))];
       for (const userId of uniqueUserIds) {
         if (!userProfiles[userId]) {
           await fetchUserProfile(userId);
@@ -284,8 +284,9 @@ export function Gallery() {
       .single();
 
     if (data) {
-      setUserProfiles((prev) => ({ ...prev, [userId]: data }));
-      return data;
+      const profile = data as Pick<UserProfile, 'full_name' | 'email'>;
+      setUserProfiles((prev) => ({ ...prev, [userId]: profile }));
+      return profile;
     }
 
     return null;

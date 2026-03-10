@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, Child } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSupabaseQuery, mutate } from '../lib/swrHooks';
 import { userScopedKeys } from '../lib/swrKeys';
@@ -50,7 +50,7 @@ export function Dashboard() {
     children.length > 0 && user ? userScopedKeys(user.id).IMMUNIZATION_RECORDS : null,
     async () => {
       if (children.length === 0 || !user) return [];
-      const childIds = children.map((c: any) => c.id);
+      const childIds = children.map((c: Child) => c.id);
       const today = new Date().toISOString().split('T')[0];
 
       const { data } = await supabase
@@ -91,7 +91,7 @@ export function Dashboard() {
     }
   };
 
-  const handleEditChild = (child: any) => {
+  const handleEditChild = (child: Child) => {
     setEditingChildId(child.id);
     setEditChildName(child.name);
     setEditChildBirthDate(child.birth_date);
@@ -146,7 +146,7 @@ export function Dashboard() {
   };
 
   const getChildName = (childId: string) => {
-    const child = children.find((c: any) => c.id === childId);
+    const child = children.find((c: Child) => c.id === childId);
     return child?.name || 'Anak';
   };
 

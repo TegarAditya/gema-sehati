@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, Story } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSupabaseQuery, mutate } from '../lib/swrHooks';
 import { SWR_KEYS, userScopedKeys } from '../lib/swrKeys';
@@ -8,7 +8,7 @@ import { Book, Plus, Clock, Calendar, BookOpen, Sparkles } from 'lucide-react';
 export function Literacy() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'logs' | 'stories'>('logs');
-  const [selectedStory, setSelectedStory] = useState<any>(null);
+  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [showAddLog, setShowAddLog] = useState(false);
 
   // SWR queries
