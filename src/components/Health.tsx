@@ -88,7 +88,7 @@ export function Health() {
         setNewVaccine((prev) => ({ ...prev, child_id: children[0].id }));
       }
     }
-  }, [children]);
+  }, [children, newGrowth.child_id, newVaccine.child_id]);
 
   const calculateBMI = (heightCm: number, weightKg: number, ageMonths: number): string => {
     const heightM = heightCm / 100;

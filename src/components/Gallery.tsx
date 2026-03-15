@@ -100,21 +100,40 @@ export function Gallery() {
         child_id: children[0].id,
       }));
     }
-  }, [children]);
+  }, [children, newPhoto.child_id]);
 
   useEffect(() => {
     const fetchAllUserProfiles = async () => {
-      const uniqueUserIds = [...new Set(photos.map((p: ActivityPhoto) => p.user_id))];
-      for (const userId of uniqueUserIds) {
-        if (!userProfiles[userId]) {
-          await fetchUserProfile(userId);
-        }
+      const missingUserIds = [...new Set(photos.map((p: ActivityPhoto) => p.user_id))]
+        .filter((userId) => !userProfiles[userId]);
+
+      if (missingUserIds.length === 0) {
+        return;
+      }
+
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, email')
+        .in('id', missingUserIds);
+
+      if (data && data.length > 0) {
+        setUserProfiles((prev) => {
+          const next = { ...prev };
+          data.forEach((profile) => {
+            next[profile.id] = {
+              full_name: profile.full_name,
+              email: profile.email,
+            };
+          });
+          return next;
+        });
       }
     };
+
     if (photos.length > 0) {
       void fetchAllUserProfiles();
     }
-  }, [photos]);
+  }, [photos, userProfiles]);
 
   const resetAddPhotoState = () => {
     if (previewUrl) {
@@ -270,26 +289,6 @@ export function Gallery() {
 
   const isPhotoOwner = (photoUserId: string) => {
     return user?.id === photoUserId;
-  };
-
-  const fetchUserProfile = async (userId: string) => {
-    if (userProfiles[userId]) {
-      return userProfiles[userId];
-    }
-
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('full_name, email')
-      .eq('id', userId)
-      .single();
-
-    if (data) {
-      const profile = data as Pick<UserProfile, 'full_name' | 'email'>;
-      setUserProfiles((prev) => ({ ...prev, [userId]: profile }));
-      return profile;
-    }
-
-    return null;
   };
 
   const getPhotoOwnerNameSync = (userId: string) => {

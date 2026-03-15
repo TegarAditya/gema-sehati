@@ -33,7 +33,7 @@ export function Auth() {
           setError(error.message);
         }
       }
-    } catch (err) {
+    } catch {
       setError('Terjadi kesalahan. Silakan coba lagi.');
     } finally {
       setLoading(false);

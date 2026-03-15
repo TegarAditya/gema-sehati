@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { mutate } from '../lib/swrHooks';
@@ -22,7 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(true);
 
-  const syncUserState = async (authUser: User | null) => {
+  const syncUserState = useCallback(async (authUser: User | null) => {
     // Clear user-scoped SWR caches when user changes
     if (!authUser || authUser.id !== user?.id) {
       // Invalidate all user-scoped SWR keys to prevent stale data across user switches
@@ -61,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(authUser);
     setIsAdmin(adminFlag);
     setIsActive(true);
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -76,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, [user?.id]);
+  }, [syncUserState]);
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {

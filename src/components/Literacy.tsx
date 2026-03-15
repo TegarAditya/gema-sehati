@@ -62,7 +62,7 @@ export function Literacy() {
     if (children.length > 0 && !newLog.child_id) {
       setNewLog((prev) => ({ ...prev, child_id: children[0].id }));
     }
-  }, [children]);
+  }, [children, newLog.child_id]);
 
   const handleAddLog = async (e: React.FormEvent) => {
     e.preventDefault();
