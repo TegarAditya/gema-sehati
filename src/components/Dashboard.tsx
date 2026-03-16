@@ -65,7 +65,7 @@ export function Dashboard() {
     }
   );
 
-  const handleAddChild = async (e: React.FormEvent) => {
+  const handleAddChild = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     e.preventDefault();
     if (!user || !newChildName.trim() || !newChildBirthDate) return;
 
@@ -98,7 +98,7 @@ export function Dashboard() {
     setEditChildGender(child.gender);
   };
 
-  const handleUpdateChild = async (e: React.FormEvent) => {
+  const handleUpdateChild = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     e.preventDefault();
     if (!user || !editingChildId || !editChildName.trim() || !editChildBirthDate) return;
 

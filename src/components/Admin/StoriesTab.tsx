@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { SyntheticEvent, useState } from 'react';
 import { supabase, Story } from '../../lib/supabase';
 import { useSupabaseQuery } from '../../lib/swrHooks';
 import { mutate } from 'swr';
@@ -20,7 +20,7 @@ export function StoriesTab() {
 
   const invalidateStories = () => Promise.all([mutate(adminKeys.STORIES), mutate(SWR_KEYS.STORIES)]);
 
-  const handleSubmitStory = async (event: FormEvent) => {
+  const handleSubmitStory = async (event: SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
     if (editingStoryId) {
       const { error } = await supabase.from('stories').update(storyForm).eq('id', editingStoryId);

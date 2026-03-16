@@ -64,7 +64,7 @@ export function Literacy() {
     }
   }, [children, newLog.child_id]);
 
-  const handleAddLog = async (e: React.FormEvent) => {
+  const handleAddLog = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     e.preventDefault();
     if (!user || !newLog.child_id) return;
 

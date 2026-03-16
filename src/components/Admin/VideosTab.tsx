@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { SyntheticEvent, useState } from 'react';
 import { supabase, Video } from '../../lib/supabase';
 import { useSupabaseQuery } from '../../lib/swrHooks';
 import { mutate } from 'swr';
@@ -22,7 +22,7 @@ export function VideosTab() {
 
   const invalidateVideos = () => Promise.all([mutate(adminKeys.VIDEOS), mutate(SWR_KEYS.VIDEOS)]);
 
-  const handleSubmitVideo = async (event: FormEvent) => {
+  const handleSubmitVideo = async (event: SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
     if (editingVideoId) {
       const { error } = await supabase.from('videos').update(videoForm).eq('id', editingVideoId);

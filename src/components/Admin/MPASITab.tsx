@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { SyntheticEvent, useState } from 'react';
 import { supabase, MPASIRecipe } from '../../lib/supabase';
 import { useSupabaseQuery } from '../../lib/swrHooks';
 import { mutate } from 'swr';
@@ -24,7 +24,7 @@ export function MPASITab() {
     await mutate((k: unknown) => Array.isArray(k) && k[0] === SWR_KEYS.MPASI_RECIPES);
   };
 
-  const handleSubmitRecipe = async (event: FormEvent) => {
+  const handleSubmitRecipe = async (event: SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
     if (editingRecipeId) {
       const { error } = await supabase.from('mpasi_recipes').update(recipeForm).eq('id', editingRecipeId);

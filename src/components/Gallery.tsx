@@ -199,7 +199,7 @@ export function Gallery() {
     setNewPhoto((prev) => ({ ...prev, file }));
   };
 
-  const handleAddPhoto = async (e: React.FormEvent) => {
+  const handleAddPhoto = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     e.preventDefault();
     if (!user || !newPhoto.file || isSubmittingPhoto) return;
 

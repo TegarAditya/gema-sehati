@@ -109,7 +109,7 @@ export function Health() {
     }
   };
 
-  const handleAddGrowth = async (e: React.FormEvent) => {
+  const handleAddGrowth = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     e.preventDefault();
     if (!newGrowth.child_id || !newGrowth.height_cm || !newGrowth.weight_kg || !user) return;
 
@@ -150,7 +150,7 @@ export function Health() {
     }
   };
 
-  const handleAddVaccine = async (e: React.FormEvent) => {
+  const handleAddVaccine = async (e: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     e.preventDefault();
     if (!newVaccine.child_id || !newVaccine.vaccine_name || !user) return;
 
