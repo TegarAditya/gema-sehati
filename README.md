@@ -2,9 +2,9 @@
 
 **Gema Sehati** is a family-focused web app for tracking child growth, health, literacy habits, and family moments in one place.
 
-![React](https://img.shields.io/badge/React-18.3.1-blue)
+![React](https://img.shields.io/badge/React-19.2.4-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.5.3-blue)
-![Vite](https://img.shields.io/badge/Vite-5.4.2-purple)
+![Vite](https://img.shields.io/badge/Vite-8.0.0-purple)
 ![Supabase](https://img.shields.io/badge/Supabase-2.57.4-green)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4.1-cyan)
 
