@@ -1,6 +1,6 @@
-# 🌟 Gema Sehati - Family Health & Literacy App
+# 🌟 G-HEART - Family Health & Literacy App
 
-**Gema Sehati** is a family-focused web app for tracking child growth, health, literacy habits, and family moments in one place.
+**G-HEART** is a family-focused web app for tracking child growth, health, literacy habits, and family moments in one place.
 
 ![React](https://img.shields.io/badge/React-19.2.4-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.5.3-blue)
